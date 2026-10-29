@@ -10,11 +10,11 @@
 
 .inputWrap {
   display: block;
-  background: #ffffff;
-  border: 1px solid #e0e4e8;
-  border-radius: 13px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 3px;
   padding: 12px 13px 10px;
-  box-shadow: 0 12px 30px rgba(44, 59, 74, 0.09);
+  box-shadow: none;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   overflow: hidden;
 }
@@ -26,14 +26,14 @@
 }
 
 .inputWrap.focused {
-  border-color: #79ccee;
-  box-shadow: 0 0 0 3px rgba(37, 184, 253, 0.12), 0 12px 30px rgba(44, 59, 74, 0.09);
+  border-color: var(--steel);
+  box-shadow: none;
 }
 
 .inputIcon {
   flex-shrink: 0;
   padding: 0 10px 0 4px;
-  color: #82909b;
+  color: var(--slate);
   display: flex;
   align-items: center;
 }
@@ -44,16 +44,16 @@
   background: transparent;
   border: none;
   outline: none;
-  color: #202933;
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  font-family: "Helvetica Neue", Arial, sans-serif;
   font-size: 0.92rem;
   letter-spacing: 0.005em;
   min-width: 0;
 }
 
 .input::placeholder {
-  color: #8a949d;
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--slate);
+  font-family: "Helvetica Neue", Arial, sans-serif;
   letter-spacing: 0;
 }
 
@@ -78,7 +78,7 @@
   min-height: 40px;
   margin-top: 8px;
   padding-top: 8px;
-  border-top: 1px solid #eef0f2;
+  border-top: 1px solid var(--bg-surface);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -102,11 +102,11 @@
   align-items: center;
   gap: 6px;
   padding: 7px 10px;
-  background: #ffffff;
-  color: #52606d;
+  background: var(--bg-surface);
+  color: var(--slate);
   border: none;
-  border-radius: 7px;
-  font-family: "Inter", sans-serif;
+  border-radius: 3px;
+  font-family: "Helvetica Neue", Arial, sans-serif;
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
@@ -115,8 +115,8 @@
 }
 
 .drawBtn:hover:not(:disabled) {
-  color: #087ca9;
-  background: #eff9fd;
+  color: var(--slate);
+  background: var(--bg-surface);
 }
 
 .drawBtn:disabled {
@@ -130,10 +130,10 @@
   align-items: center;
   gap: 6px;
   padding: 8px 13px;
-  background: #25b8fd;
-  color: #10364a;
+  background: var(--slate);
+  color: var(--ink);
   border: none;
-  font-family: "Inter", sans-serif;
+  font-family: "Helvetica Neue", Arial, sans-serif;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -143,8 +143,8 @@
 }
 
 .submitBtn:hover:not(:disabled) {
-  background: #5bcbff;
-  box-shadow: 0 5px 14px rgba(37, 184, 253, 0.2);
+  background: var(--steel);
+  box-shadow: none;
 }
 
 .submitBtn:disabled {
@@ -155,7 +155,7 @@
 .inputHelper {
   display: block;
   font-size: 0.68rem;
-  color: #89939d;
+  color: var(--slate);
 }
 
 .examples {
@@ -179,19 +179,19 @@
 
 .chip {
   padding: 5px 11px;
-  border-radius: 7px;
+  border-radius: 3px;
   font-size: 0.72rem;
   font-weight: 500;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid #e0e4e8;
+  background: var(--border-subtle);
+  border: 1px solid var(--bg-elevated);
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--transition-fast);
-  font-family: "Inter", sans-serif;
+  font-family: "Helvetica Neue", Arial, sans-serif;
 }
 
 .chip:hover:not(:disabled) {
-  background: rgba(37, 184, 253, 0.1);
+  background: var(--border-subtle);
   border-color: var(--border-accent);
   color: var(--accent-primary);
 }

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ChemicalStructure } from "@/lib/types";
 import styles from "./StructureViewer.module.css";
+import { getConnection } from "@/lib/connection";
 
 interface Props {
   structure: ChemicalStructure;
@@ -39,7 +40,7 @@ export default function StructureViewer({ structure }: Props) {
         </div>
       ) : (
         <div className={styles.imageWrap}>
-          {structure.image_url && !imgError ? (
+          {structure.image_url && !imgError && (structure.image_url.startsWith("data:image/") || getConnection().online_sources) ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={structure.image_url}

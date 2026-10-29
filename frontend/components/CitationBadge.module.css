@@ -14,9 +14,9 @@
   font-size: 0.68rem;
   font-weight: 500;
   letter-spacing: 0.01em;
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-surface);
+  color: var(--slate);
+  border: 1px solid var(--bg-elevated);
   text-decoration: none;
   transition: all var(--transition-fast);
   white-space: nowrap;
@@ -27,7 +27,7 @@
 }
 
 .badge:hover {
-  background: #e2e8f0;
-  color: #1e293b;
-  border-color: #cbd5e1;
+  background: var(--bg-elevated);
+  color: var(--ink);
+  border-color: var(--bg-elevated);
 }

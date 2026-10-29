@@ -6,9 +6,9 @@ export const metadata: Metadata = {
     default: "Pharmind",
     template: "%s · Pharmind",
   },
-  icons: { icon: "/pharmind-icon.png", apple: "/pharmind-icon.png" },
+  icons: { icon: "/icon.svg" },
   description:
-    "AI Drug Research Platform",
+    "Your personal pharmacology workspace. Run AI locally with Ollama or bring your own provider key.",
   keywords: ["Pharmind", "drug information", "pharmacology", "RAG", "SMILES", "pharmaceutical research"],
 };
 
@@ -19,7 +19,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body><a href="#main-content" className="skip-link">Skip to content</a>{children}</body>
     </html>
   );
 }

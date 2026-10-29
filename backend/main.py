@@ -10,9 +10,12 @@ Endpoints:
   GET  /debug/query-builder  → show what query would be built for a SMILES
 """
 
+from typing import Literal
+
 from fastapi import FastAPI, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from pydantic import BaseModel, Field
 from rag.schema import DrugInfo, QueryRequest
@@ -20,12 +23,16 @@ from rag.pipeline import run_pipeline
 from rag.retriever import get_retriever
 from rag.query_builder import build_retrieval_query
 from ingest.local_chem import enrich_structure_local as enrich_structure
+from rag.connection_api import router as connection_router, model_connection_context, connection_validation_error
 
 app = FastAPI(
     title="Pharmer API",
     description="Structured drug-information RAG system — Phase 3",
     version="0.3.0",
 )
+app.include_router(connection_router)
+app.middleware("http")(model_connection_context)
+app.add_exception_handler(RequestValidationError, connection_validation_error)
 
 # The browser UI is served locally; the Next.js backend proxy calls FastAPI server-to-server.
 app.add_middleware(
@@ -79,6 +86,7 @@ class ChatRequest(BaseModel):
     question: str
     history: list[dict[str, str]] = Field(default_factory=list)
     active_drug: dict[str, str | None] = Field(default_factory=dict)
+    mode: Literal["paper_learning", "structure_science", "molecule_theory"] = "structure_science"
 
 @app.post("/chat")
 async def chat_endpoint(req: ChatRequest):
@@ -99,6 +107,7 @@ async def chat_endpoint(req: ChatRequest):
             req.question,
             history=req.history,
             active_drug=req.active_drug,
+            mode=req.mode,
         )
         return {
             "success": True,
@@ -130,6 +139,33 @@ async def upload_pdf_endpoint(
         return {"success": True, "data": res}
     except Exception as exc:
         return JSONResponse(status_code=400, content={"success": False, "error": str(exc)})
+
+
+@app.get("/uploaded-pdfs")
+async def list_uploaded_pdfs():
+    """
+    List all user-uploaded research PDFs currently indexed in local ChromaDB.
+    """
+    from ingest.pdf_ingest import get_uploaded_pdfs
+    try:
+        docs = await get_uploaded_pdfs()
+        return {"success": True, "data": docs, "documents": docs}
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(exc)})
+
+
+@app.delete("/uploaded-pdfs/{filename}")
+async def delete_uploaded_pdf_endpoint(filename: str):
+    """
+    Remove an uploaded PDF from the local vector database by filename.
+    """
+    from ingest.pdf_ingest import delete_uploaded_pdf
+    try:
+        res = await delete_uploaded_pdf(filename)
+        return res
+    except Exception as exc:
+        return JSONResponse(status_code=500, content={"success": False, "error": str(exc)})
+
 
 
 @app.post("/query/stream")

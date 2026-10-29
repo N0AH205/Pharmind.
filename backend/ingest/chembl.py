@@ -15,6 +15,7 @@ import logging
 from pathlib import Path
 from typing import Any, Optional
 import httpx
+from rag.config import require_network_allowed
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +196,7 @@ async def fetch_chembl_profile(query: str, inchi_key: str | None = None) -> dict
       - mechanisms (list with target name, action_type)
       - bioactivities (top curated assays sorted by affinity value in nM)
     """
+    require_network_allowed("fetch_chembl_profile")
     mol = await get_chembl_molecule(query, inchi_key=inchi_key)
     if not mol:
         return {
@@ -281,23 +283,60 @@ async def fetch_chembl_profile(query: str, inchi_key: str | None = None) -> dict
     }
 
 
+async def fetch_chembl_passages(
+    drug_name: str,
+    inchi_key: str | None = None,
+    cid_str: str | None = None,
+) -> list[dict]:
+    """Return formatted ChEMBL mechanism and bioactivity chunk dicts for retrieval."""
+    profile = await fetch_chembl_profile(drug_name, inchi_key=inchi_key)
+    c_id = profile.get("chembl_id")
+    if not c_id:
+        return []
+
+    passages: list[dict] = []
+    # 1. Curated mechanisms
+    for m in profile.get("mechanisms", []):
+        target = m.get("target_name") or "Primary Target"
+        org = m.get("target_organism") or "Human"
+        action = m.get("action_type") or "modulator"
+        moa = m.get("mechanism_of_action") or f"{action} of {target}"
+        passages.append({
+            "text": f"ChEMBL Curated Mechanism: {moa} | Action: {action} | Target: {target} ({org})",
+            "source": f"ChEMBL Mechanism {c_id}",
+            "url": f"https://www.ebi.ac.uk/chembl/compound_report_card/{c_id}/",
+            "drug": drug_name,
+            "pubchem_cid": cid_str or "",
+            "field": "moa",
+            "retrieval_group": "moa",
+            "document_id": str(c_id),
+        })
+
+    # 2. Measured quantitative bioactivity assays (Ki, Kd, IC50, EC50 in nM)
+    for a in profile.get("bioactivities", []):
+        std_type = a.get("standard_type", "Affinity")
+        val = a.get("value_nm")
+        rel = a.get("relation") or "="
+        target = a.get("target_name") or "Target Assay"
+        org = a.get("target_organism") or "Human"
+        desc = a.get("assay_description") or ""
+        assay_id = a.get("chembl_assay_id") or c_id
+        passages.append({
+            "text": f"ChEMBL Quantitative Bioassay: Target {target} ({org}) — Measured {std_type} {rel} {val} nM. Assay details: {desc}",
+            "source": f"ChEMBL Bioassay {assay_id}",
+            "url": f"https://www.ebi.ac.uk/chembl/compound_report_card/{c_id}/",
+            "drug": drug_name,
+            "pubchem_cid": cid_str or "",
+            "field": "binding_affinity",
+            "retrieval_group": "binding_affinity",
+            "document_id": str(assay_id),
+        })
+
+    return passages
+
+
 async def get_chembl_activity_evidence(inchi_key: str | None) -> list[dict]:
     """Return formatted activity chunk dicts for run_ingest.py."""
     if not inchi_key:
         return []
-    profile = await fetch_chembl_profile(inchi_key, inchi_key=inchi_key)
-    c_id = profile.get("chembl_id")
-    if not c_id:
-        return []
-    chunks = []
-    for a in profile.get("bioactivities", []):
-        chunks.append({
-            "text": f"ChEMBL Experimental Bioassay: Target {a.get('target_name')} ({a.get('target_organism')}) — {a.get('standard_type')} {a.get('relation')} {a.get('value_nm')} nM. Assay: {a.get('assay_description') or ''}",
-            "source": f"ChEMBL Bioassay {a.get('chembl_assay_id') or c_id}",
-            "url": f"https://www.ebi.ac.uk/chembl/compound_report_card/{c_id}/",
-            "field": "binding_affinity",
-            "document_id": str(a.get("chembl_assay_id") or c_id),
-        })
-    return chunks
-
-
+    return await fetch_chembl_passages(inchi_key, inchi_key=inchi_key)

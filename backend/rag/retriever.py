@@ -58,7 +58,7 @@ class Retriever:
     """
 
     def __init__(self):
-        self.client = chromadb.PersistentClient(path=CHROMA_PATH)
+        self.client = chromadb.PersistentClient(path=CHROMA_PATH, settings=chromadb.config.Settings(anonymized_telemetry=False))
         self.collection = self.client.get_or_create_collection(
             name=COLLECTION_NAME,
             metadata={"hnsw:space": "cosine"},
@@ -96,21 +96,24 @@ class Retriever:
         pubchem_cid: str | None = None,
         drug_name: str | None = None,
         fields: list[str] | None = None,
+        include_custom_pdf: bool = True,
     ) -> list[dict]:
         """
         Return the top-n most semantically relevant chunks for the query.
 
         Two-stage process:
           1. If pubchem_cid is provided, restrict the search to only chunks
-             with that CID in their metadata (drug identity guarantee).
+             with that CID in their metadata (or custom uploaded PDFs if include_custom_pdf=True).
           2. Rank the filtered set by cosine similarity to the query embedding.
 
         Args:
-            query:        Semantic query string (built by query_builder.py).
-            n_results:    Maximum number of chunks to return.
-            pubchem_cid:  PubChem CID string (e.g. "2244" for Aspirin).
-                          If None, searches across all drugs (not recommended
-                          for production — use only for debugging/testing).
+            query:              Semantic query string.
+            n_results:          Maximum number of chunks to return.
+            pubchem_cid:        PubChem CID string (e.g. "2244" for Aspirin).
+            drug_name:          Common drug name.
+            fields:             List of document fields to filter by.
+            include_custom_pdf: If True, allows user-uploaded PDF chunks (pubchem_cid='custom')
+                                to be retrieved alongside the specific drug chunks.
 
         Returns list of dicts with:
             text, source, url, field, distance, drug, pubchem_cid
@@ -124,12 +127,23 @@ class Retriever:
         # directly search the matching DailyMed/PubMed categories.
         filters: list[dict] = []
         if pubchem_cid and pubchem_cid.isdigit():
-            filters.append({"pubchem_cid": pubchem_cid})
+            if include_custom_pdf:
+                filters.append({"$or": [{"pubchem_cid": pubchem_cid}, {"pubchem_cid": "custom"}]})
+            else:
+                filters.append({"pubchem_cid": pubchem_cid})
         elif drug_name or pubchem_cid:
-            name_val = drug_name or pubchem_cid
-            filters.append({"drug": name_val.strip().casefold()})
+            name_val = (drug_name or pubchem_cid).strip().casefold()
+            if include_custom_pdf:
+                filters.append({"$or": [{"drug": name_val}, {"pubchem_cid": "custom"}]})
+            else:
+                filters.append({"drug": name_val})
+
         if fields:
-            filters.append({"field": {"$in": fields}})
+            allowed_fields = list(fields)
+            if include_custom_pdf and "research" not in allowed_fields:
+                allowed_fields.append("research")
+            filters.append({"field": {"$in": allowed_fields}})
+
         where = filters[0] if len(filters) == 1 else ({"$and": filters} if filters else None)
 
         if where:
@@ -168,6 +182,10 @@ class Retriever:
                 "doi": meta.get("doi", ""),
                 "pmid": meta.get("pmid", ""),
                 "document_id": meta.get("document_id", ""),
+                "doc_name": meta.get("doc_name", ""),
+                "page": meta.get("page", 1),
+                "total_pages": meta.get("total_pages", 1),
+                "doc_id": meta.get("doc_id", ""),
             }
             for doc, meta, dist in zip(
                 results["documents"][0],

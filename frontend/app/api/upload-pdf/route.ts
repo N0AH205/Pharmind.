@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
       {
         method: "POST",
         body: formData,
+        headers: { "X-Pharmind-Connection": req.headers.get("X-Pharmind-Connection") || "" },
       }
     );
 

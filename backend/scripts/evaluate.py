@@ -191,7 +191,10 @@ async def evaluate_drug(drug_key: str, gold_data: dict, llm_eval_enabled: bool =
     schema_compliance = 100
     for i in range(max_retries):
         try:
-            res = await run_pipeline(smiles, debug=False)
+            pipeline_out = await run_pipeline(smiles, debug=True)
+            res = pipeline_out["result"]
+            debug_info = pipeline_out.get("debug", {})
+            retrieved_chunks = debug_info.get("retrieved_chunks", [])
             break
         except Exception as exc:
             if ("429" in str(exc) or "too many requests" in str(exc).lower()) and i < max_retries - 1:
@@ -209,15 +212,16 @@ async def evaluate_drug(drug_key: str, gold_data: dict, llm_eval_enabled: bool =
                 }
     duration_sec = (datetime.now() - start_time).total_seconds()
 
-    # Measure retrieval recall proxy over the same field-balanced evidence strategy.
-    structure_data = await enrich_structure_local(smiles)
-    cid = str(structure_data.get("pubchem_cid") or "") or None
-    retrieved_chunks = await retrieve_field_evidence(
-        structure_data,
-        get_retriever(),
-        cid,
-        str(structure_data.get("common_name") or structure_data.get("iupac_name") or "").strip() or None,
-    )
+    # Measure retrieval recall proxy over the evidence presented to the model
+    if not retrieved_chunks:
+        structure_data = await enrich_structure_local(smiles)
+        cid = str(structure_data.get("pubchem_cid") or "") or None
+        retrieved_chunks = await retrieve_field_evidence(
+            structure_data,
+            get_retriever(),
+            cid,
+            str(structure_data.get("common_name") or structure_data.get("iupac_name") or "").strip() or None,
+        )
     retrieval_metrics = _retrieval_recall(gold_data, retrieved_chunks)
 
     if res is None:
@@ -275,6 +279,15 @@ async def evaluate_drug(drug_key: str, gold_data: dict, llm_eval_enabled: bool =
             "gold": gold_data["adme"]["excretion"],
         },
     }
+    retrieval_groups_by_field = {
+        "mechanism_of_action": {"moa"},
+        "indications": {"indications"},
+        "contraindications": {"safety", "interactions"},
+        "absorption": {"adme"},
+        "distribution": {"adme"},
+        "metabolism": {"adme"},
+        "excretion": {"adme"},
+    }
 
     # Evaluate each field
     evaluated_fields = {}
@@ -288,6 +301,18 @@ async def evaluate_drug(drug_key: str, gold_data: dict, llm_eval_enabled: bool =
 
         # 1. Keyword check
         field_eval = evaluate_field(drug_key, f_name, gen_text, is_missing, gold_kws)
+        groups = retrieval_groups_by_field[f_name]
+        field_chunks = [
+            chunk for chunk in retrieved_chunks
+            if groups.intersection(chunk.get("retrieval_groups", [chunk.get("retrieval_group", "")]))
+        ]
+        field_retrieval_text = " ".join(chunk.get("text", "") for chunk in field_chunks)
+        retrieved_terms = [term for term in gold_kws if term.lower() in field_retrieval_text.lower()]
+        field_eval["retrieval_keyword_recall"] = round(
+            100 * len(retrieved_terms) / len(gold_kws), 1
+        ) if gold_kws else 100.0
+        field_eval["retrieved_gold_terms"] = retrieved_terms
+        field_eval["retrieved_passage_count"] = len(field_chunks)
 
         # 2. Citation check
         if not is_missing and gen_text:
@@ -341,12 +366,15 @@ async def evaluate_drug(drug_key: str, gold_data: dict, llm_eval_enabled: bool =
     hall_scores = [f["hallucination_score"] for f in evaluated_fields.values() if isinstance(f["hallucination_score"], int)]
     avg_hallucination_score = sum(hall_scores) / len(hall_scores) if hall_scores else None
 
-    # overall score
+    # Only report an overall quality score when factual correctness and hallucination were audited.
     if llm_eval_enabled and avg_correctness_score is not None and avg_hallucination_score is not None:
-        hallucination_penalty = avg_hallucination_score
-        overall_score = (schema_compliance + citation_evidence_score + coverage_score + (avg_correctness_score or 0.0) + (100.0 - hallucination_penalty)) / 5.0
+        overall_score = ((avg_correctness_score or 0.0) + (100.0 - avg_hallucination_score)) / 2.0
     else:
-        overall_score = (schema_compliance + citation_evidence_score + coverage_score + avg_keyword_score) / 4.0
+        overall_score = None
+    field_retrieval_scores = [field["retrieval_keyword_recall"] for field in evaluated_fields.values()]
+    avg_field_retrieval_recall = (
+        sum(field_retrieval_scores) / len(field_retrieval_scores) if field_retrieval_scores else 0.0
+    )
 
     print(f"  {GREEN}+ Completed evaluation for {drug_key.upper()}{RESET}")
     print(f"    Keyword Recall: {avg_keyword_score:.1f}%")
@@ -357,6 +385,9 @@ async def evaluate_drug(drug_key: str, gold_data: dict, llm_eval_enabled: bool =
     print(f"    Citation Rate:  {citation_score:.1f}%")
     print(f"    Field Coverage: {coverage_score:.1f}%")
     print(f"    Retrieval Recall Proxy: {retrieval_metrics['keyword_recall_proxy']:.1f}%")
+    print(f"    Field Retrieval Recall: {avg_field_retrieval_recall:.1f}%")
+    overall_display = f"{overall_score:.1f}%" if overall_score is not None else "not scored (enable --llm-eval)"
+    print(f"    Overall Quality:  {overall_display}")
 
     return {
         "drug": drug_key,
@@ -369,10 +400,11 @@ async def evaluate_drug(drug_key: str, gold_data: dict, llm_eval_enabled: bool =
         "field_count": len(all_fields),
         "populated_field_count": len(populated_fields),
         "retrieval_recall": retrieval_metrics,
+        "avg_field_retrieval_recall": round(avg_field_retrieval_recall, 1),
         "avg_keyword_score": round(avg_keyword_score, 1),
         "avg_correctness_score": round(avg_correctness_score, 1) if avg_correctness_score is not None else None,
         "avg_hallucination_score": round(avg_hallucination_score, 1) if avg_hallucination_score is not None else None,
-        "overall_score": round(overall_score, 1),
+        "overall_score": round(overall_score, 1) if overall_score is not None else None,
         "fields": evaluated_fields,
     }
 
@@ -405,21 +437,21 @@ async def main():
 
     # 2. Print table report
     print("\n" + "=" * 92)
-    print(f"{BOLD}{'Drug':<15} {'Retrieval %':<12} {'Coverage %':<12} {'Citations %':<12} {'Correct %':<10} {'Halluc %':<10} {'Overall %':<10}{RESET}")
+    print(f"{BOLD}{'Drug':<15} {'Field Ret %':<12} {'Coverage %':<12} {'Citations %':<12} {'Correct %':<10} {'Halluc %':<10} {'Overall %':<10}{RESET}")
     print("-" * 92)
 
     success_results = [r for r in results if r["success"]]
     for r in results:
         if r["success"]:
             drug_name = r["drug"].upper()
-            ret = f"{r['retrieval_recall']['keyword_recall_proxy']:.1f}%"
+            ret = f"{r['avg_field_retrieval_recall']:.1f}%"
             cov = f"{r['field_coverage_score']:.1f}%"
             cit = f"{r['citation_evidence_score']:.1f}%"
             corr_value = r["avg_correctness_score"]
             corr = f"{corr_value:.1f}%" if corr_value is not None else "N/A"
             hall_value = r["avg_hallucination_score"]
             hall = f"{hall_value:.1f}%" if hall_value is not None else "N/A"
-            ovr = f"{r['overall_score']:.1f}%"
+            ovr = f"{r['overall_score']:.1f}%" if r["overall_score"] is not None else "N/A"
             print(f"{drug_name:<15} {ret:<12} {cov:<12} {cit:<12} {corr:<10} {hall:<10} {ovr:<10}")
         else:
             print(f"{r['drug'].upper():<15} {RED}{'FAILED':<77}{RESET}")
@@ -428,6 +460,8 @@ async def main():
 
     avg_corr = None
     avg_hall = None
+    avg_ovr = None
+    avg_global_retrieval = None
     if success_results:
         avg_kw = sum(r["avg_keyword_score"] for r in success_results) / len(success_results)
         scored_corr = [r["avg_correctness_score"] for r in success_results if r["avg_correctness_score"] is not None]
@@ -435,13 +469,16 @@ async def main():
         scored_hall = [r["avg_hallucination_score"] for r in success_results if r["avg_hallucination_score"] is not None]
         avg_hall = sum(scored_hall) / len(scored_hall) if scored_hall else None
         avg_cit = sum(r["citation_score"] for r in success_results) / len(success_results)
-        avg_ovr = sum(r["overall_score"] for r in success_results) / len(success_results)
+        scored_overall = [r["overall_score"] for r in success_results if r["overall_score"] is not None]
+        avg_ovr = sum(scored_overall) / len(scored_overall) if scored_overall else None
         avg_coverage = sum(r["field_coverage_score"] for r in success_results) / len(success_results)
-        avg_retrieval_recall = sum(r["retrieval_recall"]["keyword_recall_proxy"] for r in success_results) / len(success_results)
+        avg_global_retrieval = sum(r["retrieval_recall"]["keyword_recall_proxy"] for r in success_results) / len(success_results)
+        avg_retrieval_recall = sum(r["avg_field_retrieval_recall"] for r in success_results) / len(success_results)
         avg_citation_evidence = sum(r["citation_evidence_score"] for r in success_results) / len(success_results)
         avg_corr_display = f"{avg_corr:.1f}%" if avg_corr is not None else "N/A"
         avg_hall_display = f"{avg_hall:.1f}%" if avg_hall is not None else "N/A"
-        print(f"{BOLD}{'AVERAGE':<15} {avg_retrieval_recall:.1f}%        {avg_coverage:.1f}%        {avg_citation_evidence:.1f}%        {avg_corr_display:<10} {avg_hall_display:<10} {avg_ovr:.1f}%{RESET}")
+        avg_ovr_display = f"{avg_ovr:.1f}%" if avg_ovr is not None else "N/A"
+        print(f"{BOLD}{'AVERAGE':<15} {avg_retrieval_recall:.1f}%        {avg_coverage:.1f}%        {avg_citation_evidence:.1f}%        {avg_corr_display:<10} {avg_hall_display:<10} {avg_ovr_display}{RESET}")
     print("=" * 92)
 
     # 3. Save report output
@@ -449,15 +486,23 @@ async def main():
         "timestamp": datetime.utcnow().isoformat(),
         "model_provider": LLM_PROVIDER,
         "model_evaluated": MODEL_NAME,
+        "metric_notes": {
+            "avg_overall_score": "Only populated when LLM correctness and hallucination audits run; otherwise null.",
+            "retrieval_recall": "Keyword recall proxies are reported separately from answer quality.",
+            "field_coverage_score": "Structural profile coverage; not a correctness score.",
+        },
         "metrics_average": {
             "avg_keyword_score": round(avg_kw, 1) if success_results else 0,
             "avg_correctness_score": round(avg_corr, 1) if avg_corr is not None else None,
             "avg_hallucination_score": round(avg_hall, 1) if avg_hall is not None else None,
             "avg_citation_score": round(avg_cit, 1) if success_results else 0,
-            "avg_overall_score": round(avg_ovr, 1) if success_results else 0,
+            "avg_overall_score": round(avg_ovr, 1) if avg_ovr is not None else None,
             "avg_field_coverage_score": round(avg_coverage, 1) if success_results else 0,
             "avg_citation_evidence_score": round(avg_citation_evidence, 1) if success_results else 0,
-            "avg_retrieval_recall_keyword_proxy": round(avg_retrieval_recall, 1) if success_results else 0,
+            "avg_retrieval_recall_keyword_proxy": round(avg_global_retrieval, 1) if avg_global_retrieval is not None else None,
+            "avg_field_retrieval_recall": round(
+                sum(r["avg_field_retrieval_recall"] for r in success_results) / len(success_results), 1
+            ) if success_results else 0,
         },
         "drugs_detail": results,
     }

@@ -1,0 +1,40 @@
+.page { min-height: 100vh; background: var(--paper); }
+.header { display: flex; justify-content: space-between; align-items: center; padding: 24px 6%; border-bottom: 1px solid var(--steel); }
+.header a { text-decoration: none; font-size: 12px; font-weight: 700; }
+.header .brand { font-size: 27px; letter-spacing: -1px; }
+.main { max-width: 1150px; padding: 58px 36px 80px; margin: auto; }
+.eyebrow { font-size: 10px; letter-spacing: 1.5px; font-weight: 700; }
+.intro h1 { font: 900 44px/1.1 var(--font-display); letter-spacing: -1.5px; margin: 20px 0; }
+.intro > p:last-child { font-size: 14px; color: var(--slate); }
+.columns { display: grid; grid-template-columns: 1.5fr 1fr; gap: 70px; margin-top: 48px; align-items: start; }
+.form fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.form legend { font-size: 12px; font-weight: 700; padding-bottom: 20px; width: 100%; }
+.providers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 24px; }
+.providers button { border: 1px solid var(--steel); text-align: left; padding: 14px; background: transparent; color: var(--slate); }
+.providers button[aria-pressed=true] { background: var(--slate); color: var(--blue); border-color: var(--slate); }
+.providers button span { display: block; font-size: 13px; font-weight: 700; }
+.providers small { font-size: 10px; }
+.form label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 7px; }
+.form input:not([type=checkbox]) { display: block; width: 100%; background: var(--bg-surface); color: var(--ink); padding: 11px 13px; border: 1px solid var(--steel); font-size: 13px; min-width: 0; border-radius: 0; }
+.hint { font-size: 10px; color: var(--slate); margin: 7px 0 22px; }
+.keyField { display: flex; }
+.keyField button { background: var(--steel); border: 1px solid var(--steel); padding: 0 13px; font-size: 11px; }
+.form .sources { margin-top: 12px; border-top: 1px solid var(--steel); padding-top: 24px; }
+.sources legend { float: left; }
+.sources legend + * { clear: both; }
+.form .checkbox { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+.checkbox input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--slate); flex-shrink: 0; }
+.checkbox small { display: block; font-size: 11px; font-weight: 400; color: var(--slate); margin-top: 6px; line-height: 1.7; }
+.modeNote { font-size: 11px; color: var(--slate); background: var(--blue); padding: 15px; margin: 20px 0; }
+.notice { font-size: 12px; border-left: 3px solid var(--slate); background: var(--steel); padding: 14px; margin: 16px 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.bottomLinks { display: flex; justify-content: space-between; gap: 15px; margin-top: 22px; }
+.bottomLinks button, .bottomLinks a { background: transparent; border: none; font-size: 11px; color: var(--slate); text-decoration: underline; text-underline-offset: 3px; }
+.guide { background: var(--blue); padding: 30px; }
+.guide h2 { font: 900 35px/1.1 var(--font-display); letter-spacing: -1px; margin: 20px 0; }
+.guide p:not(.eyebrow) { font-size: 12px; line-height: 1.8; color: var(--slate); }
+.guideStep { display: flex; gap: 15px; margin: 25px 0; font-size: 12px; }
+.guideStep > span { border-top: 1px solid var(--slate); padding: 4px 6px 0; }
+.guideStep strong { display: block; margin-bottom: 5px; }
+.guideStep code { display: inline-block; overflow-wrap: anywhere; }
+@media(max-width: 800px) { .main { padding: 40px 6%; } .columns { grid-template-columns: 1fr; gap: 35px; } .intro h1 { font-size: 36px; } }

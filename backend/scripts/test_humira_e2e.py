@@ -37,18 +37,19 @@ async def test_humira():
     print(f"  Retrieval Groups: {debug_info.get('retrieval_group_counts', {})}")
 
     # Inspect key fields
-    pd = drug_info.get("pharmacodynamics", {})
-    tp = drug_info.get("therapeutic_profile", {})
-    hist = drug_info.get("history", {})
+    info_dict = drug_info.model_dump() if hasattr(drug_info, "model_dump") else drug_info
+    pd = info_dict.get("pharmacodynamics", {})
+    tp = info_dict.get("therapeutic_profile", {})
+    hist = info_dict.get("history", {})
 
     print("\n[4] Section Verification:")
-    print(f"  MOA Missing? {pd.get('mechanism_of_action', {}).get('missing')}")
-    print(f"  MOA Content Preview: {str(pd.get('mechanism_of_action', {}).get('content'))[:140]}...")
-    print(f"  Indications Missing? {tp.get('indications', {}).get('missing')}")
-    print(f"  Indications Preview: {str(tp.get('indications', {}).get('content'))[:140]}...")
-    print(f"  Adverse Effects Missing? {tp.get('adverse_effects', {}).get('missing')}")
-    print(f"  Clinical Trials Missing? {hist.get('clinical_trials', {}).get('missing')}")
-    print(f"  Clinical Trials Preview: {str(hist.get('clinical_trials', {}).get('content'))[:140]}...")
+    print(f"  MOA Missing? {(pd.get('mechanism_of_action') or {}).get('missing')}")
+    print(f"  MOA Content Preview: {str((pd.get('mechanism_of_action') or {}).get('content'))[:140]}...")
+    print(f"  Indications Missing? {(tp.get('indications') or {}).get('missing')}")
+    print(f"  Indications Preview: {str((tp.get('indications') or {}).get('content'))[:140]}...")
+    print(f"  Adverse Effects Missing? {(tp.get('adverse_effects') or {}).get('missing')}")
+    print(f"  Clinical Trials Missing? {(hist.get('clinical_trials') or {}).get('missing')}")
+    print(f"  Clinical Trials Preview: {str((hist.get('clinical_trials') or {}).get('content'))[:140]}...")
 
     print("\n" + "=" * 60)
     print("HUMIRA E2E TEST PASSED!")

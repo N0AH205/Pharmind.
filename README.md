@@ -1,128 +1,133 @@
-# Pharmind / AI Drug Research & Pharmacology Intelligence Platform
+# Pharmind
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
-[![ChromaDB](https://img.shields.io/badge/ChromaDB-Vector_Store-orange)](https://www.trychroma.com/)
+A local pharmacology research workspace. Read papers, explore compounds, and keep a browser-based research notebook with an AI model you choose.
 
-**Pharmind** is an open-source pharmacology research platform and AI copilot designed for students, researchers, and healthcare professionals. 
+The interface uses Playfair Display Black, Helvetica Neue / Arial, and a restrained slate, ink, mauve, steel, and pale-blue palette. Fonts are served locally.
 
-It searches biomedical databases, visualizes 2D and 3D molecular structures, indexes research literature (PDFs), and generates comprehensive, citation-backed drug monographs spanning Pharmacodynamics, ADME, Toxicology, and Clinical Profiles.
+## Screenshots
 
-> [!NOTE]
-> **Research and Educational Use Only**: Pharmind is designed as a pharmacology research aid and learning tool. It does **not** provide medical advice, diagnosis, or treatment plans. Always consult licensed clinicians for patient care.
+### Research workspace
 
----
+Start directly in the workspace, choose a research mode, and keep your notebooks in the sidebar.
 
-## Features
+![Pharmind research workspace](docs/screenshots/workspace.jpg)
 
-* **Interactive Research Workspace (`/chat`)**: A research environment featuring multi-turn conversational reasoning, follow-up queries, and structured data views.
-* **Molecular Structure Visualizer**: Automatic chemical resolution via PubChem with interactive 2D structure diagrams, 3D molecular rendering, IUPAC nomenclature, SMILES, InChI, and PubChem CIDs.
-* **Comprehensive Pharmacology Monographs**:
-  * **Pharmacodynamics**: Mechanism of action, physiologic effects, binding affinity ($K_d$ / $K_i$), and selectivity.
-  * **Pharmacokinetics (ADME)**: Absorption, distribution, metabolism (CYP450 enzymes), and excretion half-lives.
-  * **Toxicology**: Acute toxicity, cytotoxicity, genetic risks, and hazard classifications.
-  * **Therapeutic Profile**: Indications, contraindications, adverse reactions, and drug interactions.
-* **Grounded Evidence & Resources Tab**: Consult primary sources across PubMed abstracts, DailyMed SPL labels, ClinicalTrials.gov records, and PubChem. Filter citations by category, inspect raw retrieved excerpts in a focused viewer, and export full monographs.
-* **Resilient Multi-Model Failover**: Automated fallback across Google Gemini model candidates if cloud endpoints experience temporary traffic spikes (503 Service Unavailable) or rate limits.
-* **Chat with PDF**: Upload and index your own scientific papers, clinical trials, or monographs directly into your local vector database with one click.
+<details>
+<summary>Local model setup</summary>
 
----
+Configure an installed Ollama model and its local endpoint.
 
-## 🚀 Easy Setup Guide 
+![Ollama local model connection settings](docs/screenshots/local-model.jpg)
 
-### Step 1: Download the Files
-1. Visit **[https://github.com/N0AH205/Pharmind](https://github.com/N0AH205/Pharmind)** in your browser.
-2. Click the green **`<> Code`** button at the top right, then click **Download ZIP**.
-3. Right-click the downloaded `.zip` file on your computer and choose **Extract All...**.
+</details>
 
----
+<details>
+<summary>Bring your own key</summary>
 
-### Step 2: Install Docker Desktop 
-1. Download and install **[Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)**.
-2. Open Docker Desktop from your Start menu and wait 15–30 seconds until the status icon in the bottom-left turns **green** (indicating Docker is running).
+Choose your provider and enter your own model ID and API key. No credentials are shown in this screenshot.
 
----
+![Bring-your-own-key provider settings](docs/screenshots/byok.jpg)
 
-### Step 3: Get Your Free Google Gemini API Key
-Pharmind uses Google Gemini to generate answers quickly with zero GPU hardware requirements:
-1. Visit **[Google AI Studio API Keys](https://aistudio.google.com/app/apikey)** (log in with any standard Google account).
-2. Click **Create API Key** and copy it to your clipboard.
+</details>
 
----
+## Choose how your AI runs
 
-### Step 4: Double-Click `start-pharmer.bat`!
-1. Open the extracted folder and double-click **`start-pharmer.bat`**.
-2. If you haven't configured a key yet, the launcher will prompt:
-   ```text
-   Paste your Google Gemini API key:
+- **Local:** Ollama runs a downloaded model on your computer. Online literature sources are off by default. Research requests use cached embedding and reranking models and your local document index.
+- **Bring your own key:** OpenAI, Anthropic, and Google Gemini are optional. Your questions, conversation context, and selected evidence are sent through your local backend to the provider you select. The provider's terms and charges apply. This mode is not offline inference.
+- **Online sources:** A separate, explicit setting enables literature searches and compound lookups through public databases. Choosing a cloud AI provider does not automatically enable these searches.
+
+Pharmind has no account, trial, subscription, or shared service key. It is intended for a trusted, single-user local installation; keep its ports bound to loopback rather than exposing them publicly.
+
+For research and education only. Generated answers need source verification and are not medical advice.
+
+## Start with Docker
+
+1. Install and start Docker Desktop.
+2. Copy `backend/.env.example` to `backend/.env` if it does not exist. The example defaults to Ollama and disables online sources.
+3. Run `docker compose up -d --build`.
+4. Prepare the document models once while connected to the internet:
+
+   ```sh
+   docker compose exec -T backend python scripts/prepare_local_models.py
    ```
-   Simply right-click or paste your key and press **Enter**.
-3. The launcher will automatically build and start the containers, and launch your browser at:
-   👉 **[http://localhost:3000](http://localhost:3000)**
 
-#### How to Stop:
-When you are done researching, simply double-click **`stop-pharmer.bat`** to stop the application. Your research history and settings stay saved.
+5. For local inference, install Ollama on your host, start it, and download a model:
 
----
+   ```sh
+   ollama pull qwen2.5:3b
+   ```
 
-## How to Use Pharmind
+6. Open [connection settings](http://localhost:3000/settings). Choose your engine, enter the exact installed or provider model ID, test the connection, and save it for this browser session.
+7. Open the workspace and add a PDF through **Document library** or **Add a paper**.
 
-1. **Search a Drug**:
-   * Type common drug names (e.g., *Metformin, Aspirin, Ibuprofen, Atorvastatin*) or paste a SMILES chemical formula into the search bar.
-   * Press **Enter** or click **Search**.
-2. **Review the Profile**:
-   * Inspect the mechanism of action, CYP metabolic enzymes, clearance rates, and contraindications.
-   * View the 2D chemical structure or rotate the interactive 3D model.
-3. **Ask Follow-Up Questions**:
-   * Type conversational questions in the bottom chat bar (e.g., *"Can this be taken with alcohol?"* or *"What are common off-target bindings?"*).
-4. **Compare Compounds**:
-   * Click the **Compare** button on any profile to view side-by-side pharmacological comparisons between multiple drugs.
-5. **Manage Your Sessions**:
-   * All queries appear in the **Recent Chats** sidebar.
-   * Click any previous chat to restore its full conversation history and drug monograph.
-   * Hover over any session and click **✕** to delete it.
-   * Click **+ New Chat** anytime to start a fresh exploration.
+On Windows, `start-pharmer.bat` builds the containers, prepares the document model cache, and opens the workspace. It does not ask for a cloud key or automatically ingest online literature. Use `stop-pharmer.bat` to stop the app.
 
----
+Initial dependency and model downloads require internet access. After preparation, local mode can operate offline. If a model is missing, the app reports the setup step instead of downloading it during your research request.
 
-## ❓ Frequently Asked Questions (FAQ)
+The Docker backend reaches host Ollama through `host.docker.internal`. The default localhost address in the UI maps to the configured `OLLAMA_BASE_URL`. Compose publishes both application ports only on `127.0.0.1`.
 
-<details>
-<summary><b>1. Docker says "Docker is not running" or fails to start. What do I do?</b></summary>
-Open the Docker Desktop application from your Windows/Mac application menu and wait 15–30 seconds until the status light in the bottom corner shows solid green. Once Docker Desktop is running, try running the start script again.
-</details>
+## Start without Docker
 
-<details>
-<summary><b>2. How much disk space does Pharmind take?</b></summary>
-The initial Docker images take roughly 2–3 GB. If you use Ollama with `qwen2.5:7b`, it requires an additional ~4.5 GB for the model weights. If disk space is limited, using the Gemini free API key requires virtually no disk space.
-</details>
+Use Python 3.10+ and a supported Node.js version for Next.js 16. Install the existing dependencies:
 
-<details>
-<summary><b>3. Where are my saved chats stored? Can other people see them?</b></summary>
-Your saved chats and research queries are stored strictly in your browser's local storage (`localStorage`). They never leave your computer and cannot be viewed by other users.
-</details>
+```sh
+cd backend
+python -m venv .venv
+# Activate .venv for your shell, then:
+pip install -r requirements.txt
+python scripts/prepare_local_models.py
+uvicorn main:app --host 127.0.0.1 --port 8000
+```
 
-<details>
-<summary><b>4. Can I upload my own PDF research papers?</b></summary>
-Yes! In the research workspace (`/chat`), click **Chat with PDF** in the sidebar. Select your paper, associate it with a drug name, and Pharmind will extract, chunk, and index the text into your local ChromaDB store.
-</details>
+In another terminal:
 
-<details>
-<summary><b>5. What happens if Google's Gemini API has high traffic (503 Service Unavailable)?</b></summary>
-Pharmind includes built-in automatic failover. If your selected model experiences a temporary cloud outage or rate limits, the app automatically fails over to backup Gemini flash models without crashing your query. You can customize fallback candidates in `backend/.env` using `GEMINI_FALLBACK_MODELS`.
-</details>
+```sh
+cd frontend
+npm ci
+npm run dev
+```
 
-<details>
-<summary><b>6. Can I run the project locally without Docker?</b></summary>
-Yes! 
-- **Backend**: In a Python 3.10+ environment, run `pip install -r backend/requirements.txt` and launch `uvicorn main:app --reload --port 8000` from the `backend/` directory.
-- **Frontend**: In `frontend/`, run `npm install` followed by `npm run dev` to access the interface at `http://localhost:3000`.
-</details>
+Open [Pharmind](http://localhost:3000) to start in the workspace. Configure your model through **Model & connection** in the sidebar.
 
----
+## Where your information lives
 
-## License & Attribution
+| Information | Location |
+| --- | --- |
+| Conversations and notebooks | Browser local storage |
+| Connection and entered API key | This tab's session storage; clear with **Forget saved connection** |
+| Uploaded PDFs and extracted passages | Local backend data directory and ChromaDB |
+| Embedding and reranking models | `PHARMER_MODEL_CACHE`, default `backend/.cache` when run from the backend |
+| BYOK requests | Selected provider, via the local backend |
 
-* **Software License**: [MIT License](LICENSE).
-* **Data Sources**: Pharmacological and chemical data is sourced from PubChem (NCBI), DailyMed (NLM), PubMed (NCBI), and ClinicalTrials.gov subject to their respective terms of use.
+Entered keys are not written to backend files, included in chat history, or returned by the connection test. Session storage is accessible to scripts on the app's origin; it is not an encrypted credential vault. Environment variables remain available for command-line workflows. Browser requests carry their own selected settings, independently of those variables.
+
+Connection testing checks Ollama's installed model list or the selected provider's model endpoint. It does not send a research prompt or verify answer quality.
+
+Local mode blocks automatic external structure images and the externally hosted visual molecule editor. You can still enter SMILES and use the editor's local templates. Enabling online sources enables the external editor and structure images as well as database lookups. Clicking an external citation is a deliberate visit to that source.
+
+## Research workflow
+
+- **Paper learning:** Upload and index literature, then ask about methods, findings, and limitations.
+- **Structure & science:** Enter a compound name or SMILES to explore structures and grounded profiles. Offline name resolution depends on locally available records; import literature or use SMILES when a compound is unavailable.
+- **Molecule theory:** Ask about mechanisms, interactions, and structure–activity relationships.
+- **Notebooks:** Conversations are saved in the browser and can be reopened or deleted from the sidebar.
+- **References:** Inspect source passages and export profiles. Existing comparisons and citation tools remain available.
+
+## Checks
+
+```sh
+cd frontend
+npm run build
+```
+
+```sh
+cd backend
+python -m unittest scripts.test_connection -v
+python -m compileall -q rag ingest main.py
+```
+
+Connection tests cover provider selection, session isolation across concurrent streams, key redaction, model availability checks, and online-source blocking. They use mocked providers and do not need real API keys or a running Ollama instance.
+
+## License
+
+MIT. Playfair Display is bundled under the SIL Open Font License in `frontend/public/fonts/OFL.txt`.

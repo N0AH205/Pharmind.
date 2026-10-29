@@ -4,7 +4,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: var(--shadow-card);
+  box-shadow: none;
 }
 
 /* ── Header ── */
@@ -14,7 +14,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 24px 28px 20px;
-  background: #ffffff;
+  background: var(--bg-surface);
   border-bottom: 1px solid var(--border-subtle);
   flex-wrap: wrap;
 }
@@ -39,7 +39,8 @@
 }
 
 .genericName {
-  font-size: 1.4rem;
+  font-family: var(--font-display);
+  font-size: 1.8rem;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.02em;
@@ -86,9 +87,9 @@
 }
 
 .smilesCode {
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: "Helvetica Neue", Arial, sans-serif;
   font-size: 0.8rem;
-  color: #334155;
+  color: var(--slate);
   background: none;
   border: none;
   padding: 0;
@@ -103,21 +104,21 @@
   align-items: center;
   gap: 6px;
   padding: 5px 12px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  color: #374151;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 3px;
+  color: var(--slate);
   font-size: 0.76rem;
   font-weight: 550;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: none;
 }
 
 .exportBtn:hover {
-  background: #f8fafc;
-  color: #111827;
-  border-color: #cbd5e1;
+  background: var(--bg-surface);
+  color: var(--ink);
+  border-color: var(--bg-elevated);
 }
 
 /* ── Tabs ── */
@@ -138,7 +139,7 @@
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-family: "Inter", sans-serif;
+  font-family: "Helvetica Neue", Arial, sans-serif;
   font-size: 0.83rem;
   font-weight: 500;
   cursor: pointer;
@@ -172,7 +173,7 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-  animation: fadeInUp 0.22s ease forwards;
+
 }
 
 .tabDescription {
@@ -429,7 +430,7 @@
   gap: 8px;
   padding: 14px 28px;
   border-top: 1px solid var(--border-subtle);
-  background: rgba(245, 158, 11, 0.03);
+  background: var(--border-subtle);
   font-size: 0.75rem;
   color: var(--color-missing);
   line-height: 1.55;
@@ -458,7 +459,7 @@
 .footerExportLink {
   font-size: 0.78rem;
   font-weight: 600;
-  color: #0052ff;
+  color: var(--slate);
   cursor: pointer;
   user-select: none;
 }
@@ -471,9 +472,9 @@
 .unifiedSourcesContainer {
   margin: 18px 24px 8px;
   padding: 16px 18px;
-  background: #fbfcfd;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 3px;
 }
 
 .unifiedSourcesHeader {
@@ -487,13 +488,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #334155;
+  color: var(--slate);
 }
 
 .unifiedSourcesTitle {
   font-size: 0.84rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--ink);
   letter-spacing: -0.01em;
   margin: 0;
 }
@@ -503,11 +504,11 @@
   align-items: center;
   font-size: 0.69rem;
   font-weight: 600;
-  color: #64748b;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  color: var(--slate);
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
   padding: 2px 8px;
-  border-radius: 9999px;
+  border-radius: 3px;
 }
 
 .unifiedSourcesGrid {
@@ -521,21 +522,21 @@
   align-items: flex-start;
   gap: 10px;
   padding: 9px 12px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 3px;
   text-decoration: none;
   color: inherit;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  box-shadow: none;
 }
 
 .unifiedSourceCard:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  background: var(--bg-surface);
+  border-color: var(--bg-elevated);
+
+  box-shadow: none;
 }
 
 .unifiedSourceNum {
@@ -545,8 +546,8 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--bg-surface);
+  color: var(--slate);
   font-size: 0.68rem;
   font-weight: 700;
   flex-shrink: 0;
@@ -575,46 +576,46 @@
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 4px;
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-surface);
+  color: var(--slate);
+  border: 1px solid var(--bg-elevated);
   flex-shrink: 0;
 }
 
 .badgeDailyMed {
-  background: #f5f3ff;
-  color: #5b21b6;
-  border-color: #ddd6fe;
+  background: var(--bg-surface);
+  color: var(--slate);
+  border-color: var(--bg-elevated);
 }
 
 .badgeFDA {
-  background: #f0fdf4;
-  color: #166534;
-  border-color: #bbf7d0;
+  background: var(--bg-surface);
+  color: var(--slate);
+  border-color: var(--bg-elevated);
 }
 
 .badgePubMed {
-  background: #f0f9ff;
-  color: #0369a1;
-  border-color: #bae6fd;
+  background: var(--bg-surface);
+  color: var(--slate);
+  border-color: var(--bg-elevated);
 }
 
 .badgePubChem {
-  background: #f0fdfa;
-  color: #0f766e;
-  border-color: #99f6e4;
+  background: var(--bg-surface);
+  color: var(--slate);
+  border-color: var(--steel);
 }
 
 .badgeClinicalTrials {
-  background: #f8fafc;
-  color: #334155;
-  border-color: #cbd5e1;
+  background: var(--bg-surface);
+  color: var(--slate);
+  border-color: var(--bg-elevated);
 }
 
 .badgeChEMBL {
-  background: #fffbeb;
-  color: #92400e;
-  border-color: #fde68a;
+  background: var(--bg-surface);
+  color: var(--slate);
+  border-color: var(--steel);
 }
 
 /* ─── Resources Tab (Clean, Dedicated Deck) ─── */
@@ -630,19 +631,19 @@
   align-items: center;
   gap: 12px;
   padding: 12px 14px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 3px;
   text-decoration: none;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-shadow: none;
 }
 
 .quickLinkCard:hover {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  background: var(--bg-surface);
+  border-color: var(--bg-elevated);
+
+  box-shadow: none;
 }
 
 .quickLinkIconWrap {
@@ -666,7 +667,7 @@
 .quickLinkTitle {
   font-size: 0.84rem;
   font-weight: 650;
-  color: #0f172a;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -674,20 +675,20 @@
 
 .quickLinkSub {
   font-size: 0.72rem;
-  color: #64748b;
+  color: var(--slate);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .quickLinkExtIcon {
-  color: #94a3b8;
+  color: var(--steel);
   flex-shrink: 0;
   transition: transform 0.15s ease, color 0.15s ease;
 }
 
 .quickLinkCard:hover .quickLinkExtIcon {
-  color: #0052ff;
+  color: var(--slate);
   transform: translate(1px, -1px);
 }
 
@@ -702,7 +703,7 @@
 
 .resourcesSectionDesc {
   font-size: 0.84rem;
-  color: #64748b;
+  color: var(--slate);
   margin: 2px 0 0;
 }
 
@@ -717,24 +718,24 @@
   font-size: 0.75rem;
   font-weight: 600;
   padding: 5px 12px;
-  border-radius: 9999px;
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  border-radius: 3px;
+  background: var(--bg-surface);
+  color: var(--slate);
+  border: 1px solid var(--bg-elevated);
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
 .filterPill:hover {
-  background: #e2e8f0;
-  color: #1e293b;
+  background: var(--bg-elevated);
+  color: var(--ink);
 }
 
 .filterPillActive {
-  background: #0052ff !important;
-  color: #ffffff !important;
-  border-color: #0052ff !important;
-  box-shadow: 0 1px 4px rgba(0, 82, 255, 0.25);
+  background: var(--slate) !important;
+  color: var(--bg-surface) !important;
+  border-color: var(--slate) !important;
+  box-shadow: none;
 }
 
 .resourcesGrid {
@@ -744,23 +745,23 @@
 }
 
 .resourceCard {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 3px;
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-shadow: none;
   cursor: pointer;
 }
 
 .resourceCard:hover {
-  background: #fdfdfd;
-  border-color: #cbd5e1;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  background: var(--bg-surface);
+  border-color: var(--bg-elevated);
+
+  box-shadow: none;
 }
 
 .resourceCardHeader {
@@ -772,12 +773,12 @@
 .resourceIndex {
   font-size: 0.72rem;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--steel);
 }
 
 .resourceCardExtLink {
   margin-left: auto;
-  color: #94a3b8;
+  color: var(--steel);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -787,14 +788,14 @@
 }
 
 .resourceCardExtLink:hover {
-  color: #0052ff;
-  background: #eff6ff;
+  color: var(--slate);
+  background: var(--bg-surface);
 }
 
 .resourceCardTitle {
   font-size: 0.88rem;
   font-weight: 650;
-  color: #0f172a;
+  color: var(--ink);
   line-height: 1.4;
   margin: 0;
   word-break: break-word;
@@ -809,7 +810,7 @@
 .resourceCardSectionsLabel {
   font-size: 0.68rem;
   font-weight: 650;
-  color: #64748b;
+  color: var(--slate);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -825,9 +826,9 @@
   font-weight: 550;
   padding: 2px 7px;
   border-radius: 4px;
-  background: #f8fafc;
-  color: #475569;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-surface);
+  color: var(--slate);
+  border: 1px solid var(--bg-elevated);
 }
 
 .resourceCardActions {
@@ -836,7 +837,7 @@
   justify-content: space-between;
   margin-top: auto;
   padding-top: 10px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--bg-surface);
 }
 
 .resourceCardExcerptBtn {
@@ -844,32 +845,32 @@
   align-items: center;
   gap: 5px;
   background: transparent;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--bg-elevated);
   padding: 4px 10px;
-  border-radius: 6px;
+  border-radius: 3px;
   font-size: 0.72rem;
   font-weight: 600;
-  color: #0284c7;
+  color: var(--slate);
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
 .resourceCardExcerptBtn:hover {
-  background: #f0f9ff;
-  border-color: #bae6fd;
-  color: #0369a1;
+  background: var(--bg-surface);
+  border-color: var(--bg-elevated);
+  color: var(--slate);
 }
 
 .resourceCardNoExcerpt {
   font-size: 0.7rem;
-  color: #94a3b8;
+  color: var(--steel);
   font-style: italic;
 }
 
 .resourceCardVisitBtn {
   font-size: 0.76rem;
   font-weight: 600;
-  color: #0052ff;
+  color: var(--slate);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -878,20 +879,376 @@
 }
 
 .resourceCardVisitBtn:hover {
-  color: #003dbb;
+  color: var(--slate);
   text-decoration: underline;
 }
 
 .emptyResourcesBox {
   padding: 32px 20px;
   text-align: center;
-  background: #f8fafc;
-  border: 1px dashed #cbd5e1;
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 1px dashed var(--bg-elevated);
+  border-radius: 3px;
 }
 
 .emptyResourcesText {
-  color: #64748b;
+  color: var(--slate);
   font-size: 0.88rem;
   margin: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   6-SECTION PHARMACEUTICAL MONOGRAPH ENHANCEMENTS
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Section Numbers & Badges ── */
+.sectionBadgeNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 3px;
+  background: var(--slate);
+  color: var(--bg-surface);
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+/* ── Data Quality & Evidence Indicators ── */
+.qualityBadgeGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.evidenceBadge {
+  font-size: 0.65rem;
+  font-weight: 550;
+  letter-spacing: 0;
+  color: var(--slate);
+}
+
+.evidenceRegulatory {
+  color: var(--slate);
+}
+
+.evidenceClinical {
+  color: var(--slate);
+}
+
+.evidenceExperimental {
+  color: var(--slate);
+}
+
+.evidenceComputational {
+  color: var(--slate);
+}
+
+.statusPill {
+  font-size: 0.7rem;
+  font-weight: 550;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.statusReported {
+  color: var(--slate);
+}
+
+.statusNotFound {
+  color: var(--slate);
+}
+
+.statusNotEvaluated {
+  color: var(--slate);
+}
+
+.statusNoEvidence,
+.statusNotReported,
+.statusNotApplicable {
+  color: var(--slate);
+}
+
+.statusSearchIncomplete,
+.statusUnverified {
+  color: var(--slate);
+}
+
+.statusAnswerNotGenerated {
+  color: var(--slate);
+}
+
+.statusPositive {
+  color: var(--slate);
+}
+
+.statusNegative {
+  color: var(--slate);
+}
+
+.statusInconclusive {
+  color: var(--slate);
+}
+
+/* ── Boxed Warning Callout ── */
+.boxedWarningCard {
+  border-radius: 3px;
+  border: 2px solid var(--slate);
+  background: var(--bg-surface);
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: none;
+}
+
+.boxedWarningHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.boxedWarningIcon {
+  font-size: 1.3rem;
+}
+
+.boxedWarningTitle {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: var(--slate);
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.boxedWarningText {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--slate);
+  margin: 0;
+}
+
+.noWarningCard {
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 3px;
+  color: var(--slate);
+  font-size: 0.84rem;
+  font-weight: 550;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+/* ── Responsive Modern Data Tables ── */
+.tableWrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  background: var(--bg-surface);
+  margin: 8px 0 16px;
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.82rem;
+}
+
+.dataTable th {
+  background: var(--bg-surface);
+  color: var(--slate);
+  font-weight: 650;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.dataTable td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--bg-surface);
+  color: var(--ink);
+  vertical-align: middle;
+}
+
+.dataTable tr:last-child td {
+  border-bottom: none;
+}
+
+.dataTable tr:hover td {
+  background: var(--bg-surface);
+}
+
+.targetCellName {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+/* ── Dual Regulatory Jurisdiction Cards (US FDA & BPOM) ── */
+.regulatoryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.regulatoryCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 3px;
+  padding: 18px 20px;
+  box-shadow: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.regulatoryCard:hover {
+  border-color: var(--bg-elevated);
+  box-shadow: none;
+}
+
+.regulatoryCardFda {
+  border-top: 4px solid var(--slate);
+}
+
+.regulatoryCardBpom {
+  border-top: 4px solid var(--slate);
+}
+
+.regHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.regJurisdictionTitle {
+  font-size: 1rem;
+  font-weight: 750;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.regFlag {
+  font-size: 1.2rem;
+}
+
+.regStatusBadge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.regStatusApproved {
+  background: var(--bg-elevated);
+  color: var(--slate);
+  border: 1px solid var(--steel);
+}
+
+.regStatusInvestigational {
+  background: var(--bg-elevated);
+  color: var(--slate);
+  border: 1px solid var(--steel);
+}
+
+.regStatusNotFound {
+  background: var(--bg-surface);
+  color: var(--slate);
+  border: 1px solid var(--bg-elevated);
+}
+
+.regDetailsText {
+  font-size: 0.84rem;
+  color: var(--slate);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* ── Physicochemical Properties Grid ── */
+.physicoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.physicoCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 3px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.physicoCardLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--slate);
+  letter-spacing: 0.03em;
+}
+
+.physicoCardValue {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.physicoCardConditions {
+  font-size: 0.74rem;
+  color: var(--steel);
+}
+
+/* ── Brand Name Chips ── */
+.brandChipsWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.brandChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 3px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.brandJurisdiction {
+  font-size: 0.68rem;
+  color: var(--slate);
+  background: var(--bg-surface);
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid var(--bg-elevated);
 }

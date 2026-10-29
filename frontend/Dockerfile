@@ -14,6 +14,8 @@ WORKDIR /app
 
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
+ENV HOSTNAME 0.0.0.0
+ENV PORT 3000
 
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/.next ./.next

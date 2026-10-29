@@ -33,6 +33,7 @@ PROPERTY_FIELDS = ",".join([
     "CanonicalSMILES",
     "InChI",
     "InChIKey",
+    "XLogP",
 ])
 
 # Patterns that identify non-human-readable identifiers we want to skip
@@ -545,6 +546,7 @@ async def enrich_structure(query: str) -> dict:
         "synonyms": synonyms,
         "molecular_formula": props.get("MolecularFormula"),
         "molecular_weight": float(props["MolecularWeight"]) if props.get("MolecularWeight") else None,
+        "logp": float(props["XLogP"]) if props.get("XLogP") is not None else None,
         "pubchem_cid": cid,
         "image_url": await get_structure_image_url(cid) if cid else None,
         "sources": [

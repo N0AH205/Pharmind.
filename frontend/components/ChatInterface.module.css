@@ -25,17 +25,17 @@
 }
 
 .userBubbleText {
-  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: "Helvetica Neue", Arial, sans-serif;
   font-size: 0.95rem;
   font-weight: 500;
   line-height: 1.5;
-  color: #1e293b;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  color: var(--ink);
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
   border-radius: 18px 18px 4px 18px;
   padding: 10px 16px;
   word-break: break-word;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: none;
 }
 
 /* ── Assistant bubble ── */
@@ -69,18 +69,18 @@
 }
 
 .assistantTextCard {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 3px;
   padding: 16px 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: none;
 }
 
 .proseParagraph {
   margin: 0 0 14px 0;
   font-size: 0.93rem;
   line-height: 1.7;
-  color: #1f2937;
+  color: var(--ink);
 }
 
 .proseParagraph:last-of-type {
@@ -94,11 +94,11 @@
   margin: 0 0 10px 0;
   font-size: 0.93rem;
   line-height: 1.7;
-  color: #1f2937;
+  color: var(--ink);
 }
 
 .bulletDot {
-  color: #0d9488;
+  color: var(--slate);
   font-size: 1.1rem;
   line-height: 1.4;
   flex-shrink: 0;
@@ -108,7 +108,7 @@
   margin: 18px 0 8px 0;
   font-size: 0.98rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--ink);
   letter-spacing: -0.01em;
   line-height: 1.4;
 }
@@ -119,10 +119,10 @@
 
 .proseBold {
   font-weight: 650;
-  color: #111827;
+  color: var(--ink);
 }
 
-/* ── In-Text Citation Pills ── */
+/* ── Inline source references ── */
 .citationGroup {
   display: inline-flex;
   align-items: center;
@@ -138,31 +138,27 @@
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1;
-  color: #0f766e;
-  background: #f0fdfa;
-  border: 1px solid rgba(13, 148, 136, 0.32);
-  border-radius: 9999px;
-  padding: 2px 6px;
+  color: var(--slate);
+  background: transparent;
+  border: 0;
+  padding: 0 1px;
   text-decoration: none;
   cursor: pointer;
-  transition: all 0.15s ease-in-out;
+  transition: color 0.15s ease-in-out;
   position: relative;
   top: -2px;
 }
 
 .citationPill:hover {
-  background: #0d9488;
-  color: #ffffff;
-  border-color: #0d9488;
-  transform: translateY(-1px) scale(1.08);
-  box-shadow: 0 2px 6px rgba(13, 148, 136, 0.28);
+  color: var(--slate);
+  text-decoration: underline;
 }
 
 /* ── Bottom Sources Section ── */
 .sourcesContainer {
   margin-top: 18px;
   padding-top: 14px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--bg-elevated);
 }
 
 .sourcesHeader {
@@ -170,27 +166,18 @@
   align-items: center;
   gap: 7px;
   margin-bottom: 12px;
-  color: #4b5563;
+  color: var(--slate);
 }
 
 .sourcesTitle {
   font-size: 0.78rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #374151;
+  font-weight: 650;
+  color: var(--slate);
 }
 
 .sourcesCount {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #e5e7eb;
-  color: #4b5563;
+  color: var(--slate);
   font-size: 0.68rem;
-  font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 9999px;
 }
 
 .sourcesGrid {
@@ -201,42 +188,29 @@
 
 .sourceCard {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 9px;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-surface);
+  border-radius: 3px;
   text-decoration: none;
   color: inherit;
   transition: all 0.18s ease-in-out;
 }
 
 .sourceCard:hover {
-  background: #ffffff;
-  border-color: #0d9488;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(13, 148, 136, 0.08);
+  background: var(--bg-surface);
+  border-color: var(--bg-elevated);
 }
 
 .sourceNum {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #e0f2fe;
-  color: #0369a1;
-  font-size: 0.7rem;
-  font-weight: 700;
+  color: var(--slate);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding-top: 1px;
   flex-shrink: 0;
-  transition: all 0.18s ease;
-}
-
-.sourceCard:hover .sourceNum {
-  background: #0d9488;
-  color: #ffffff;
 }
 
 .sourceInfo {
@@ -247,123 +221,34 @@
   gap: 2px;
 }
 
-.sourceMeta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.badgePubMed {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.62rem;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #dbeafe;
-  color: #1e40af;
-  flex-shrink: 0;
-}
-
-.badgePubChem {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.62rem;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #ccfbf1;
-  color: #0f766e;
-  flex-shrink: 0;
-}
-
-.badgeDailyMed {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.62rem;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #ede9fe;
-  color: #6d28d9;
-  flex-shrink: 0;
-}
-
-.badgeFDA {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.62rem;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #dcfce7;
-  color: #15803d;
-  flex-shrink: 0;
-}
-
-.badgeChEMBL {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.62rem;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #ffedd5;
-  color: #c2410c;
-  flex-shrink: 0;
-}
-
-.badgeClinicalTrials {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.62rem;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #e0e7ff;
-  color: #4338ca;
-  flex-shrink: 0;
-}
-
-.badgeDefault {
-  display: inline-flex;
-  align-items: center;
-  font-size: 0.62rem;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #f3f4f6;
-  color: #4b5563;
-  flex-shrink: 0;
+.sourceSnippet {
+  font-size: 0.72rem;
+  color: var(--slate);
+  line-height: 1.4;
+  margin-top: 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .sourceName {
   font-size: 0.79rem;
   font-weight: 600;
-  color: #1f2937;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sourceUrl {
-  font-size: 0.68rem;
-  color: #64748b;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .sourceIcon {
-  color: #94a3b8;
+  color: var(--steel);
   flex-shrink: 0;
   transition: all 0.18s ease;
 }
 
 .sourceCard:hover .sourceIcon {
-  color: #0d9488;
-  transform: translate(2px, -2px);
+  color: var(--slate);
 }
 
 /* ── Error bubble ── */
@@ -372,8 +257,8 @@
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--border-subtle);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   font-size: 0.85rem;
   color: var(--color-error);
@@ -433,7 +318,7 @@
   text-align: center;
   padding: 64px 24px;
   gap: 16px;
-  animation: fadeIn 0.4s ease forwards;
+
 }
 
 .emptyIcon {
@@ -445,7 +330,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: pulse-glow 2s ease-in-out infinite;
+
 }
 
 .emptyTitle {

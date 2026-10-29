@@ -18,6 +18,10 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     build-essential \
+    libxrender1 \
+    libxext6 \
+    libsm6 \
+    libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js for serving frontend alongside backend if needed, or static serving

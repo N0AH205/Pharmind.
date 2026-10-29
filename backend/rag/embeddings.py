@@ -11,6 +11,8 @@ excellent performance for biomedical and general RAG text.
 from __future__ import annotations
 
 import logging
+import os
+from pathlib import Path
 from typing import Sequence
 
 from rag.config import OFFLINE_MODE
@@ -29,7 +31,11 @@ def get_embedding_model() -> TextEmbedding:
     global _embedding_model
     if _embedding_model is None:
         logger.info(f"Loading local embedding model: {EMBED_MODEL_NAME}...")
-        _embedding_model = TextEmbedding(model_name=EMBED_MODEL_NAME)
+        cache_dir = Path(os.getenv("PHARMER_MODEL_CACHE", "./.cache")) / "embeddings"
+        try:
+            _embedding_model = TextEmbedding(model_name=EMBED_MODEL_NAME, cache_dir=str(cache_dir), local_files_only=True)
+        except Exception as exc:
+            raise RuntimeError("Local embedding model is not ready. Run python scripts/prepare_local_models.py from the backend directory while online, then retry.") from exc
     return _embedding_model
 
 

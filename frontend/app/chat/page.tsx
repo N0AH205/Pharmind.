@@ -1,15 +1,14 @@
-import type { Metadata } from "next";
-import ChatWorkspace from "./ChatWorkspace";
-
-export const metadata: Metadata = {
-  title: "AI Chatbot",
-};
+import { redirect } from "next/navigation";
 
 export default async function ChatPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; mode?: string }>;
 }) {
-  const { q } = await searchParams;
-  return <ChatWorkspace initialQuery={q ?? ""} />;
+  const { q, mode } = await searchParams;
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (mode) params.set("mode", mode);
+  const query = params.toString();
+  redirect(query ? `/?${query}` : "/");
 }

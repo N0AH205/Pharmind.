@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
     const backendRes = await fetch(`${backendUrl}/query`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Pharmind-Connection": req.headers.get("X-Pharmind-Connection") || "" },
       body: JSON.stringify({ smiles: body.smiles }),
     });
 

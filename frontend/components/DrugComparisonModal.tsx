@@ -9,8 +9,68 @@ interface Props {
   onClose: () => void;
 }
 
+function getDrugName(drug: DrugInfo): string {
+  return (
+    drug.drug_overview?.identity?.generic_name?.content ||
+    drug.drug_name?.generic ||
+    "Unknown Drug"
+  );
+}
+
+function getMoa(drug: DrugInfo): string {
+  return (
+    drug.pharmacodynamics?.mechanism_of_action?.content ||
+    "Data unavailable"
+  );
+}
+
+function getAbsorption(drug: DrugInfo): string {
+  return (
+    drug.pharmacokinetics?.absorption?.bioavailability?.content ||
+    drug.adme?.absorption?.content ||
+    "N/A"
+  );
+}
+
+function getMetabolism(drug: DrugInfo): string {
+  return (
+    drug.pharmacokinetics?.metabolism?.metabolic_pathways?.content ||
+    drug.adme?.metabolism?.content ||
+    "N/A"
+  );
+}
+
+function getExcretion(drug: DrugInfo): string {
+  return (
+    drug.pharmacokinetics?.excretion?.primary_route?.content ||
+    drug.adme?.excretion?.content ||
+    "N/A"
+  );
+}
+
+function getSafety(drug: DrugInfo): string {
+  const boxed = drug.toxicology_and_safety?.clinical_safety?.boxed_warning?.content;
+  if (boxed && !boxed.toLowerCase().startsWith("no boxed warning") && !boxed.toLowerCase().startsWith("none")) {
+    return `⚠️ Boxed Warning: ${boxed}`;
+  }
+  return (
+    drug.toxicology_and_safety?.clinical_safety?.warnings_and_precautions?.content ||
+    drug.toxicology?.acute_toxicity?.content ||
+    "No severe clinical hazards reported"
+  );
+}
+
+function getRegulatory(drug: DrugInfo): string {
+  const us = drug.therapeutic_profile?.regulatory_status?.united_states?.status || "Approved";
+  const bpom = drug.therapeutic_profile?.regulatory_status?.indonesia?.status || "Registered";
+  return `🇺🇸 US FDA: ${us} | 🇮🇩 BPOM: ${bpom}`;
+}
+
 export default function DrugComparisonModal({ leftDrug, rightDrug, onClose }: Props) {
   if (!leftDrug || !rightDrug) return null;
+
+  const leftName = getDrugName(leftDrug);
+  const rightName = getDrugName(rightDrug);
 
   return (
     <div className={styles.overlay} onClick={onClose}>
@@ -21,7 +81,7 @@ export default function DrugComparisonModal({ leftDrug, rightDrug, onClose }: Pr
             <div>
               <h3 className={styles.title}>Comparative Pharmacology Analysis</h3>
               <p className={styles.subTitle}>
-                Side-by-side evaluation of {leftDrug.drug_name.generic} vs. {rightDrug.drug_name.generic}
+                Side-by-side evaluation of {leftName} vs. {rightName}
               </p>
             </div>
           </div>
@@ -35,25 +95,30 @@ export default function DrugComparisonModal({ leftDrug, rightDrug, onClose }: Pr
             {/* Left Column */}
             <div className={styles.col}>
               <div className={styles.colHeader}>
-                <h4>{leftDrug.drug_name.generic}</h4>
+                <h4>{leftName}</h4>
                 <code>{leftDrug.query_smiles}</code>
               </div>
 
               <div className={styles.section}>
+                <h5>Regulatory Status</h5>
+                <p style={{ fontSize: "0.82rem", fontWeight: 600 }}>{getRegulatory(leftDrug)}</p>
+              </div>
+
+              <div className={styles.section}>
                 <h5>Mechanism of Action</h5>
-                <p>{leftDrug.pharmacodynamics.mechanism_of_action.content || "Data unavailable"}</p>
+                <p>{getMoa(leftDrug)}</p>
               </div>
 
               <div className={styles.section}>
                 <h5>ADME Profile</h5>
-                <p><strong>Absorption:</strong> {leftDrug.adme.absorption.content || "N/A"}</p>
-                <p><strong>Metabolism:</strong> {leftDrug.adme.metabolism.content || "N/A"}</p>
-                <p><strong>Excretion:</strong> {leftDrug.adme.excretion.content || "N/A"}</p>
+                <p><strong>Absorption:</strong> {getAbsorption(leftDrug)}</p>
+                <p><strong>Metabolism:</strong> {getMetabolism(leftDrug)}</p>
+                <p><strong>Excretion:</strong> {getExcretion(leftDrug)}</p>
               </div>
 
               <div className={styles.section}>
                 <h5>Safety & Toxicity</h5>
-                <p>{leftDrug.toxicology.acute_toxicity.content || "No acute toxicity data"}</p>
+                <p>{getSafety(leftDrug)}</p>
               </div>
             </div>
 
@@ -62,25 +127,30 @@ export default function DrugComparisonModal({ leftDrug, rightDrug, onClose }: Pr
             {/* Right Column */}
             <div className={styles.col}>
               <div className={styles.colHeader}>
-                <h4>{rightDrug.drug_name.generic}</h4>
+                <h4>{rightName}</h4>
                 <code>{rightDrug.query_smiles}</code>
               </div>
 
               <div className={styles.section}>
+                <h5>Regulatory Status</h5>
+                <p style={{ fontSize: "0.82rem", fontWeight: 600 }}>{getRegulatory(rightDrug)}</p>
+              </div>
+
+              <div className={styles.section}>
                 <h5>Mechanism of Action</h5>
-                <p>{rightDrug.pharmacodynamics.mechanism_of_action.content || "Data unavailable"}</p>
+                <p>{getMoa(rightDrug)}</p>
               </div>
 
               <div className={styles.section}>
                 <h5>ADME Profile</h5>
-                <p><strong>Absorption:</strong> {rightDrug.adme.absorption.content || "N/A"}</p>
-                <p><strong>Metabolism:</strong> {rightDrug.adme.metabolism.content || "N/A"}</p>
-                <p><strong>Excretion:</strong> {rightDrug.adme.excretion.content || "N/A"}</p>
+                <p><strong>Absorption:</strong> {getAbsorption(rightDrug)}</p>
+                <p><strong>Metabolism:</strong> {getMetabolism(rightDrug)}</p>
+                <p><strong>Excretion:</strong> {getExcretion(rightDrug)}</p>
               </div>
 
               <div className={styles.section}>
                 <h5>Safety & Toxicity</h5>
-                <p>{rightDrug.toxicology.acute_toxicity.content || "No acute toxicity data"}</p>
+                <p>{getSafety(rightDrug)}</p>
               </div>
             </div>
           </div>

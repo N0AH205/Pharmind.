@@ -16,6 +16,7 @@ venv/
 
 # Data / Vector DB
 data/chroma/
+backend/data/chroma/
 data/raw/
 **/cache/
 *.tsbuildinfo

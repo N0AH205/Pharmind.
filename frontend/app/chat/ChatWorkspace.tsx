@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, type FormEvent, type KeyboardEvent } from "react";
+import { useState, useCallback, useRef, useEffect, type KeyboardEvent } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import type { ChatMessage, ChatSession, DrugInfo } from "@/lib/types";
+import { DEFAULT_CONNECTION, getConnection, PROVIDERS } from "@/lib/connection";
+import type { ChatMessage, ChatMode, ChatSession, DrugInfo } from "@/lib/types";
 import { queryDrugStream } from "@/lib/api";
 import ChatInterface from "@/components/ChatInterface";
 import PDFDropzone from "@/components/PDFDropzone";
@@ -13,22 +13,45 @@ import styles from "./chat.module.css";
 
 interface Props {
   initialQuery?: string;
+  initialMode?: ChatMode;
 }
 
-export default function ChatWorkspace({ initialQuery = "" }: Props) {
+const CHAT_MODES: { id: ChatMode; title: string; description: string }[] = [
+  { id: "paper_learning", title: "Paper learning", description: "Understand journal papers, methods, findings, and limitations." },
+  { id: "structure_science", title: "Structure & science", description: "Explore molecule profiles, structures, properties, and sourced evidence." },
+  { id: "molecule_theory", title: "Molecule theory", description: "Explore mechanisms, molecular interactions, and structure–activity relationships." },
+];
+
+export default function ChatWorkspace({ initialQuery = "", initialMode = "structure_science" }: Props) {
+  const [connection, setConnection] = useState(DEFAULT_CONNECTION);
+  useEffect(() => {
+    setConnection(getConnection());
+    if (window.matchMedia("(max-width: 760px)").matches) setSidebarOpen(false);
+  }, []);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const activeSessionIdRef = useRef<string | null>(null);
   const [hasHydrated, setHasHydrated] = useState(false);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [chatMode, setChatMode] = useState<ChatMode>(initialMode);
   const [loading, setLoading] = useState(false);
   const [streamStatus, setStreamStatus] = useState<string>("");
   const [compareModalOpen, setCompareModalOpen] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const pdfDialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (pdfModalOpen) pdfDialogRef.current?.showModal();
+  }, [pdfModalOpen]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [inputText, setInputText] = useState("");
+  const [activePdf, setActivePdf] = useState<{
+    filename: string;
+    pages: number;
+    chunks: number;
+    associatedDrug?: string;
+  } | null>(null);
   const heroTextareaRef = useRef<HTMLTextAreaElement>(null);
   const bottomTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -36,7 +59,6 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
     activeSessionIdRef.current = activeSessionId;
   }, [activeSessionId]);
 
-  // Load saved sessions on mount
   useEffect(() => {
     try {
       const raw = localStorage.getItem("pharmind_chat_sessions_v1");
@@ -53,7 +75,6 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
     }
   }, []);
 
-  // Sync sessions to localStorage whenever sessions change (after hydration)
   useEffect(() => {
     if (!hasHydrated) return;
     try {
@@ -84,11 +105,9 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
     const lower = trimmed.toLowerCase();
     const words = trimmed.split(/\s+/).filter(Boolean);
 
-    // Check if query is a pure SMILES formula, PubChem CID, or standalone chemical entity
     const isSmilesPattern = !trimmed.includes(" ") && (/[=#()@\\/]/.test(trimmed) || /^[A-Z][a-z]?\d*$/.test(trimmed));
     const isPubChemCidPattern = /^cid\s*\d+$/i.test(trimmed);
 
-    // Conversational indicators
     const hasQuestionSign = trimmed.includes("?") || trimmed.includes("!");
     const conversationalStarters = [
       "what", "how", "why", "when", "who", "which", "where",
@@ -106,11 +125,11 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
     ];
     const hasConversationalKeyword = conversationalKeywords.some((kw) => lower.includes(kw));
 
-    // A query is a drug monograph lookup only if it's a SMILES, CID, or 1-2 word name with no conversational intent
-    const isSmilesOrDrug =
+    const isSmilesOrDrug = chatMode === "structure_science" && (
       isSmilesPattern ||
       isPubChemCidPattern ||
-      (words.length <= 2 && !hasQuestionSign && !startsConversational && !hasConversationalKeyword);
+      (words.length <= 2 && !hasQuestionSign && !startsConversational && !hasConversationalKeyword)
+    );
 
     if (isSmilesOrDrug) {
       const userMsg: ChatMessage = {
@@ -129,6 +148,7 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
             createdAt: Date.now(),
             updatedAt: Date.now(),
             messages: [userMsg],
+            mode: chatMode,
           };
           return [newSession, ...prev.filter((s) => s.id !== currentSessionId)];
         } else {
@@ -155,7 +175,7 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
           generatedCharacters += fragment.length;
           if (generatedCharacters % 200 < fragment.length) {
             setStreamStatus(
-              `Generating structured profile locally… ${generatedCharacters.toLocaleString()} characters received`
+              `Generating structured profile… ${generatedCharacters.toLocaleString()} characters received`
             );
           }
         },
@@ -194,7 +214,7 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
         })
       );
     } else {
-      // Conversational Q&A mode
+
       const userMsg: ChatMessage = {
         id: `user-${Date.now()}`,
         role: "user",
@@ -211,6 +231,7 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
             createdAt: Date.now(),
             updatedAt: Date.now(),
             messages: [userMsg],
+            mode: chatMode,
           };
           return [newSession, ...prev.filter((s) => s.id !== currentSessionId)];
         } else {
@@ -223,7 +244,7 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
       });
 
       setLoading(true);
-      setStreamStatus("Searching knowledge base & generating answer...");
+      setStreamStatus("Searching evidence & generating answer...");
 
       const history = messages
         .filter((m) => m.text || m.smiles || m.drugInfo)
@@ -234,7 +255,7 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
             (m.smiles
               ? `Drug query: ${m.smiles}`
               : m.drugInfo
-                ? `Retrieved profile for ${m.drugInfo.drug_name.generic}; CID ${m.drugInfo.chemical_structure.pubchem_cid ?? "unknown"}.`
+                ? `Retrieved profile for ${m.drugInfo.drug_overview?.identity?.generic_name?.content || m.drugInfo.drug_name?.generic || "compound"}; CID ${m.drugInfo.drug_overview?.identifiers?.pubchem_cid ?? m.drugInfo.chemical_structure?.pubchem_cid ?? "unknown"}.`
                 : ""),
         }))
         .filter((m) => m.content)
@@ -243,13 +264,15 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
       const lastDrugInfo = [...messages].reverse().find((m) => m.drugInfo)?.drugInfo;
       const activeDrug = lastDrugInfo
         ? {
-          name: lastDrugInfo.drug_name.generic,
-          cid: lastDrugInfo.chemical_structure.pubchem_cid?.toString(),
+          name: lastDrugInfo.drug_overview?.identity?.generic_name?.content || lastDrugInfo.drug_name?.generic || "",
+          cid: (lastDrugInfo.drug_overview?.identifiers?.pubchem_cid ?? lastDrugInfo.chemical_structure?.pubchem_cid)?.toString(),
         }
+        : activePdf?.associatedDrug
+        ? { name: activePdf.associatedDrug }
         : { name: "" };
 
       const { sendChatMessage } = await import("@/lib/api");
-      const res = await sendChatMessage(trimmed, history, activeDrug);
+      const res = await sendChatMessage(trimmed, history, activeDrug, chatMode);
 
       setLoading(false);
       setStreamStatus("");
@@ -278,7 +301,7 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
         )
       );
     }
-  }, [loading, messages]);
+  }, [activePdf?.associatedDrug, chatMode, loading, messages]);
 
   const handleQueryRef = useRef(handleQuery);
   useEffect(() => {
@@ -301,10 +324,21 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
     if (target) {
       setActiveSessionId(target.id);
       setMessages(target.messages || []);
+      setChatMode(target.mode || "structure_science");
       setStreamStatus("");
       setInputText("");
     }
   }, [loading, sessions]);
+
+  const handleModeChange = (mode: ChatMode) => {
+    setChatMode(mode);
+    const sessionId = activeSessionIdRef.current;
+    if (sessionId) {
+      setSessions((prev) => prev.map((session) =>
+        session.id === sessionId ? { ...session, mode } : session
+      ));
+    }
+  };
 
   const handleDeleteSession = useCallback((e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
@@ -322,7 +356,67 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
     setMessages([]);
     setStreamStatus("");
     setInputText("");
+    setActivePdf(null);
   }, [loading]);
+
+  const handlePdfIngested = useCallback(
+    (doc: {
+      filename: string;
+      pages: number;
+      chunks_stored: number;
+      associated_drug: string;
+    }) => {
+      setChatMode("paper_learning");
+      setActivePdf({
+        filename: doc.filename,
+        pages: doc.pages,
+        chunks: doc.chunks_stored,
+        associatedDrug: doc.associated_drug,
+      });
+      setPdfModalOpen(false);
+
+      let currentSessionId = activeSessionIdRef.current;
+      const isNew = !currentSessionId;
+      if (isNew) {
+        currentSessionId = `sess-${Date.now()}`;
+        setActiveSessionId(currentSessionId);
+        activeSessionIdRef.current = currentSessionId;
+      }
+
+      const introMsg: ChatMessage = {
+        id: `assistant-${Date.now()}`,
+        role: "assistant",
+        text: `### ${doc.filename} Indexed Successfully\n\nI have parsed and embedded **${doc.chunks_stored} passages** across **${doc.pages} page(s)** into local vector memory${
+          doc.associated_drug ? ` (associated with **${doc.associated_drug}**)` : ""
+        }.\n\nYou can ask questions specifically about this paper, request a structured summary, or compare findings with pharmacology databases.`,
+        timestamp: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, introMsg]);
+      setSessions((prev) => {
+        if (isNew) {
+          return [
+            {
+              id: currentSessionId!,
+              title: `Paper: ${doc.filename.slice(0, 20)}...`,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              messages: [introMsg],
+              mode: "paper_learning",
+            },
+            ...prev,
+          ];
+        } else {
+          return prev.map((s) =>
+            s.id === currentSessionId
+              ? { ...s, updatedAt: Date.now(), messages: [...s.messages, introMsg], mode: "paper_learning" }
+              : s
+          );
+        }
+      });
+    },
+    []
+  );
 
   const handleSubmit = (e?: React.SyntheticEvent) => {
     if (e?.preventDefault) {
@@ -354,23 +448,11 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
 
   return (
     <div className={styles.layout}>
-      {/* ── Left Sidebar (SciSpace style) ── */}
       <aside className={`${styles.sidebar} ${!sidebarOpen ? styles.sidebarCollapsed : ""}`}>
-        {/* Sidebar Header */}
         <div className={styles.sidebarHeader}>
-          <Link href="/" className={styles.sidebarBrand} aria-label="Go to Homepage">
-            <div className={styles.scispaceLogo} aria-hidden="true">
-              <Image
-                src="/pharmind-logo.png"
-                alt="Pharmind Logo"
-                width={26}
-                height={26}
-                style={{ objectFit: "contain" }}
-                priority
-              />
-            </div>
+          <div className={styles.sidebarBrand}>
             <span className={styles.brandName}>Pharmind</span>
-          </Link>
+          </div>
           <button
             type="button"
             className={styles.collapseBtn}
@@ -384,18 +466,16 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
             </svg>
           </button>
         </div>
-
-        {/* New Chat Button */}
         <div className={styles.newChatWrap}>
           <button
             type="button"
             className={styles.newChatBtn}
             onClick={handleNewChat}
-            aria-label="Start new chat"
+            aria-label="Start new research"
           >
             <span className={styles.newChatBtnLeft}>
               <span style={{ fontSize: "1.1rem" }}>+</span>
-              <span>New Chat</span>
+              <span>New research</span>
             </span>
             <svg className={styles.newChatSearchIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" />
@@ -403,27 +483,13 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
             </svg>
           </button>
         </div>
-
-        {/* Sidebar Nav Items */}
         <div className={styles.sidebarScroll}>
           <div className={styles.navSection}>
-            {/* Critical requirement: Home navigates back to homescreen */}
-            <Link href="/" className={styles.navItem} aria-label="Go to Homepage">
-              <span className={styles.navItemIcon}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-              </span>
-              <span>Home</span>
-            </Link>
-
-            {/* Chat with PDF triggers PDFDropzone modal */}
             <button
               type="button"
               className={styles.navItem}
               onClick={() => setPdfModalOpen(true)}
-              aria-label="Chat with PDF literature"
+              aria-label="Open document library"
             >
               <span className={styles.navItemIcon}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -431,18 +497,16 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
                   <polyline points="14 2 14 8 20 8" />
                 </svg>
               </span>
-              <span>Chat with PDF</span>
+              <span>Document library</span>
             </button>
           </div>
-
-          {/* Section: Recent Chats */}
           <div>
             <div className={styles.sectionHeader}>
-              <span>Recent Chats</span>
+              <span>YOUR NOTEBOOKS</span>
             </div>
             <div className={styles.recentChatList}>
               {sessions.length === 0 ? (
-                <div className={styles.emptyRecent}>No recent chats yet</div>
+                <div className={styles.emptyRecent}>No saved research yet.</div>
               ) : (
                 sessions.map((session) => (
                   <div
@@ -483,26 +547,18 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
             </div>
           </div>
         </div>
-
-        {/* Bottom User Profile */}
-        <div className={styles.userProfile}>
-          <div className={styles.avatar}>NS</div>
+        <Link href="/settings" className={styles.userProfile}>
+          <svg className={styles.connectionIcon} width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="m9 3-.6 2.4-1.8 1L4.2 6 2 10l1.8 1.6v2L2 15l2.2 4 2.4-.4 1.8 1L9 22h5l.6-2.4 1.8-1 2.4.4 2.2-4-1.8-1.4v-2L21 10l-2.2-4-2.4.4-1.8-1L14 3Z" />
+            <circle cx="11.5" cy="12.5" r="3" />
+          </svg>
           <div className={styles.userInfo}>
-            <span className={styles.userName}>Noah Stephen</span>
-            <span className={styles.userEmail}>n04hstephen@gm...</span>
+            <span className={styles.userName}>Model & connection</span>
+            <span className={styles.userEmail}>{PROVIDERS[connection.provider].name} · {connection.provider === "ollama" ? "On device" : "BYOK"}</span>
           </div>
-          <button type="button" className={styles.settingsBtn} title="Settings">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
-        </div>
+        </Link>
       </aside>
-
-      {/* ── Main Workspace ── */}
-      <main className={styles.main}>
-        {/* Topbar */}
+      <main id="main-content" className={styles.main}>
         <header className={styles.topbar}>
           <div className={styles.topbarLeft}>
             {!sidebarOpen && (
@@ -518,12 +574,7 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
                 </svg>
               </button>
             )}
-            <Link href="/" className={styles.homeBackLink} aria-label="Return to Homepage">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
-              <span>Back to Home</span>
-            </Link>
+            <span className={styles.workspaceTitle}>{sessions.find(session => session.id === activeSessionId)?.title || "Research workspace"}</span>
           </div>
 
           <div className={styles.topbarRight}>
@@ -532,47 +583,85 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
                 type="button"
                 style={{
                   padding: "5px 12px",
-                  background: "rgba(2, 132, 199, 0.1)",
-                  border: "1px solid rgba(2, 132, 199, 0.3)",
+                  background: "var(--blue)",
+                  border: "1px solid var(--steel)",
                   borderRadius: "6px",
-                  color: "#0284c7",
+                  color: "var(--slate)",
                   fontSize: "0.82rem",
                   fontWeight: 600,
                   cursor: "pointer",
                 }}
                 onClick={() => setCompareModalOpen(true)}
               >
-                ⚖️ Compare Candidates ({drugInfos.length})
+                Compare Candidates ({drugInfos.length})
               </button>
             )}
-
-            <span className={styles.topbarLink}>API</span>
-            <span className={styles.topbarLink}>Enterprise</span>
-            <span className={styles.topbarLink}>Pricing</span>
           </div>
         </header>
-
-        {/* ── Center Content: Empty Hero vs Active Chat ── */}
         {!hasStarted ? (
-          /* Empty / Initial State (matching Image 2) */
           <div className={styles.emptyStateScroll}>
             <div className={styles.emptyHero}>
-              {/* Pharmind logo & title */}
-              <div className={styles.heroLogoWrap}>
-                <Image
-                  src="/pharmind-logo.png"
-                  alt="Pharmind Logo"
-                  width={34}
-                  height={34}
-                  style={{ objectFit: "contain" }}
-                  priority
-                />
-                <span className={styles.heroLogoText}>Pharmind</span>
+
+              <h1 className={styles.heroHeading}>New research</h1><p className={styles.heroSubtitle}>Ask about a compound or add a paper to begin.</p>
+
+              <div className={styles.modePicker} role="group" aria-label="Choose a research mode">
+                {CHAT_MODES.map((mode) => (
+                  <button
+                    key={mode.id}
+                    type="button"
+                    className={styles.modeCard}
+                    aria-pressed={chatMode === mode.id}
+                    onClick={() => handleModeChange(mode.id)}
+                  >
+                    <span className={styles.modeCardTitle}>{mode.title}</span>
+                    <span className={styles.modeCardDescription}>{mode.description}</span>
+                  </button>
+                ))}
               </div>
 
-              <h1 className={styles.heroHeading}>How can I help with your research?</h1>
+              {activePdf && (
+                <div className={styles.activePdfPill}>
+                  <span className={styles.activePdfIcon}>📄</span>
+                  <span className={styles.activePdfName} title={activePdf.filename}>
+                    Active Paper: <strong>{activePdf.filename}</strong> ({activePdf.pages}p)
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.clearPdfBtn}
+                    onClick={() => setActivePdf(null)}
+                    title="Unlink paper from active chat context"
+                    aria-label="Remove active paper"
+                  >
+                    ✕
+                  </button>
+                </div>
+              )}
 
-              {/* Big Prompt Box */}
+              {activePdf && (
+                <div className={styles.pdfSuggestionChips}>
+                  <button
+                    type="button"
+                    className={styles.chipBtn}
+                    onClick={() => handleQuery(`Summarize the core findings and clinical significance of "${activePdf.filename}".`)}
+                  >
+                    Summarize paper
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.chipBtn}
+                    onClick={() => handleQuery(`Extract all reported dosages, pharmacokinetics, and mechanism of action from "${activePdf.filename}".`)}
+                  >
+                    Extract PK & Mechanism
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.chipBtn}
+                    onClick={() => handleQuery(`What adverse effects or contraindications are documented in "${activePdf.filename}"?`)}
+                  >
+                    Safety & Adverse Effects
+                  </button>
+                </div>
+              )}
               <form onSubmit={handleSubmit} className={styles.promptBox}>
                 <textarea
                   ref={heroTextareaRef}
@@ -581,7 +670,13 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
                   onChange={(e) => setInputText(e.target.value)}
                   onInput={(e) => setInputText((e.target as HTMLTextAreaElement).value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Give me any task to work on..."
+                  placeholder={activePdf
+                    ? `Ask questions about ${activePdf.filename}...`
+                    : chatMode === "paper_learning"
+                      ? "Ask about a paper, study design, results, or limitations..."
+                      : chatMode === "molecule_theory"
+                        ? "Explore a molecule's mechanism, interactions, or structure–activity relationship..."
+                        : "Enter a molecule name or SMILES, or ask a scientific question..."}
                   rows={2}
                   disabled={loading}
                   aria-label="Research task or drug query input"
@@ -592,12 +687,10 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
                     <button
                       type="button"
                       className={styles.toolsBtn}
-                      disabled
-                      aria-disabled="true"
-                      style={{ cursor: "default", opacity: 0.8 }}
+                      onClick={() => setPdfModalOpen(true)}
                     >
                       <span>+</span>
-                      <span>Tools</span>
+                      <span>Add a paper</span>
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                         <path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06z" clipRule="evenodd" />
                       </svg>
@@ -605,20 +698,12 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
                   </div>
 
                   <div className={styles.toolbarRight}>
-                    <button type="button" className={styles.modelBadge}>
-                      <span>Lite</span>
+                    <Link href="/settings" className={styles.modelBadge}>
+                      <span>{PROVIDERS[connection.provider].name}</span>
                       <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
                         <path fillRule="evenodd" d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06z" clipRule="evenodd" />
                       </svg>
-                    </button>
-                    <button type="button" className={styles.micBtn} title="Voice input">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                        <line x1="12" y1="19" x2="12" y2="23" />
-                        <line x1="8" y1="23" x2="16" y2="23" />
-                      </svg>
-                    </button>
+                    </Link>
                     <button
                       type="button"
                       onClick={handleSubmit}
@@ -627,12 +712,12 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
                       aria-label="Send message"
                       title="Send message"
                       style={{
-                        backgroundColor: "#0052ff",
-                        color: "#ffffff",
+                        backgroundColor: "var(--slate)",
+                        color: "var(--bg-surface)",
                         cursor: loading ? "not-allowed" : "pointer",
                       }}
                     >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                         <line x1="12" y1="19" x2="12" y2="5" />
                         <polyline points="5 12 12 5 19 12" />
                       </svg>
@@ -640,6 +725,7 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
                   </div>
                 </div>
               </form>
+              <p className={styles.workspaceNote}>Conversations saved in this browser. {connection.provider === "ollama" ? "Inference uses your local Ollama model." : "Prompts and evidence go to your selected provider."}</p>
             </div>
           </div>
         ) : (
@@ -648,10 +734,50 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
             <div className={styles.chatMessagesArea}>
               <ChatInterface messages={messages} loading={loading} streamStatus={streamStatus} />
             </div>
-
-            {/* Bottom prompt bar inside chat */}
             <div className={styles.chatInputBottomBar}>
               <div className={styles.chatInputWrapper}>
+                {activePdf && (
+                  <div className={styles.activePdfPill}>
+                    <span className={styles.activePdfIcon}>📄</span>
+                    <span className={styles.activePdfName} title={activePdf.filename}>
+                      Active Paper: <strong>{activePdf.filename}</strong> ({activePdf.pages}p)
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.clearPdfBtn}
+                      onClick={() => setActivePdf(null)}
+                      title="Unlink paper from active chat context"
+                      aria-label="Remove active paper"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                {activePdf && messages.length <= 2 && (
+                  <div className={styles.pdfSuggestionChips}>
+                    <button
+                      type="button"
+                      className={styles.chipBtn}
+                      onClick={() => handleQuery(`Summarize the core findings and clinical significance of "${activePdf.filename}".`)}
+                    >
+                      Summarize paper
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.chipBtn}
+                      onClick={() => handleQuery(`Extract all reported dosages, pharmacokinetics, and mechanism of action from "${activePdf.filename}".`)}
+                    >
+                      Extract PK & Mechanism
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.chipBtn}
+                      onClick={() => handleQuery(`What adverse effects or contraindications are documented in "${activePdf.filename}"?`)}
+                    >
+                      Safety & Adverse Effects
+                    </button>
+                  </div>
+                )}
                 <form onSubmit={handleSubmit} className={styles.promptBox}>
                   <textarea
                     ref={bottomTextareaRef}
@@ -660,7 +786,13 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
                     onChange={(e) => setInputText(e.target.value)}
                     onInput={(e) => setInputText((e.target as HTMLTextAreaElement).value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Ask a follow-up question, give SMILES, or request comparison..."
+                    placeholder={activePdf
+                      ? `Ask questions about ${activePdf.filename}...`
+                      : chatMode === "paper_learning"
+                        ? "Ask a follow-up about the papers or study evidence..."
+                        : chatMode === "molecule_theory"
+                          ? "Ask a follow-up about mechanisms or molecular theory..."
+                          : "Ask a follow-up, enter SMILES, or request a comparison..."}
                     rows={1}
                     disabled={loading}
                     aria-label="Follow-up question or drug query input"
@@ -670,12 +802,10 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
                       <button
                         type="button"
                         className={styles.toolsBtn}
-                        disabled
-                        aria-disabled="true"
-                        style={{ cursor: "default", opacity: 0.8 }}
+                        onClick={() => setPdfModalOpen(true)}
                       >
                         <span>+</span>
-                        <span>Tools</span>
+                        <span>Add a paper</span>
                       </button>
                     </div>
                     <div className={styles.toolbarRight}>
@@ -687,12 +817,12 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
                         aria-label="Send message"
                         title="Send message"
                         style={{
-                          backgroundColor: "#0052ff",
-                          color: "#ffffff",
+                          backgroundColor: "var(--slate)",
+                          color: "var(--bg-surface)",
                           cursor: loading ? "not-allowed" : "pointer",
                         }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <line x1="12" y1="19" x2="12" y2="5" />
                           <polyline points="5 12 12 5 19 12" />
                         </svg>
@@ -704,30 +834,26 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
             </div>
           </div>
         )}
-
-        {/* ── Modals ── */}
-        {/* PDF Ingestion Modal */}
         {pdfModalOpen && (
-          <div className={styles.modalBackdrop} onClick={() => setPdfModalOpen(false)}>
+          <dialog ref={pdfDialogRef} className={styles.modalBackdrop} aria-labelledby="pdf-title" onCancel={() => setPdfModalOpen(false)} onClick={event => { if (event.target === event.currentTarget) setPdfModalOpen(false); }}>
             <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
               <div className={styles.modalHeader}>
-                <h3 className={styles.modalTitle}>Index Research PDF</h3>
+                <h3 id="pdf-title" className={styles.modalTitle}>Your document library</h3>
                 <button
                   type="button"
                   className={styles.closeModalBtn}
+                  aria-label="Close document library"
                   onClick={() => setPdfModalOpen(false)}
                 >
                   ✕
                 </button>
               </div>
               <div className={styles.modalBody}>
-                <PDFDropzone />
+                <PDFDropzone onSuccess={handlePdfIngested} />
               </div>
             </div>
-          </div>
+          </dialog>
         )}
-
-        {/* Molecule Drawer Modal */}
         <MoleculeDrawerModal
           isOpen={drawerOpen}
           onClose={() => setDrawerOpen(false)}
@@ -736,8 +862,6 @@ export default function ChatWorkspace({ initialQuery = "" }: Props) {
             handleQuery(smiles);
           }}
         />
-
-        {/* Drug Comparison Modal */}
         {compareModalOpen && drugInfos.length >= 2 && (
           <DrugComparisonModal
             leftDrug={drugInfos[0]}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import styles from "./MoleculeDrawerModal.module.css";
+import { getConnection } from "@/lib/connection";
 
 interface Props {
   isOpen: boolean;
@@ -30,7 +31,7 @@ export default function MoleculeDrawerModal({
   // Listen for SMILES updates from JSME iframe
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
-      if (event.data && event.data.type === "JSME_SMILES") {
+      if (event.origin === window.location.origin && event.source === iframeRef.current?.contentWindow && event.data?.type === "JSME_SMILES") {
         setCurrentSmiles(event.data.smiles || "");
       }
     }
@@ -44,7 +45,7 @@ export default function MoleculeDrawerModal({
     if (iframeRef.current && iframeRef.current.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
         { type: "SET_SMILES", smiles },
-        "*"
+        window.location.origin
       );
     }
   };
@@ -55,7 +56,7 @@ export default function MoleculeDrawerModal({
       setTimeout(() => {
         iframeRef.current?.contentWindow?.postMessage(
           { type: "SET_SMILES", smiles: initialSmiles },
-          "*"
+          window.location.origin
         );
       }, 400);
     }
@@ -121,13 +122,13 @@ export default function MoleculeDrawerModal({
 
           {/* JSME Canvas Container */}
           <div className={styles.editorContainer}>
-            <iframe
+            {getConnection().online_sources ? <iframe
               ref={iframeRef}
               src="/editor.html"
               className={styles.iframe}
               title="JSME Chemical Structure Editor"
               onLoad={handleIframeLoad}
-            />
+            /> : <div style={{ padding: "30px", color: "var(--slate)" }}><p>The visual editor loads an external library and is unavailable while online sources are off. Use a template or enter SMILES below.</p><label htmlFor="local-smiles">Molecular SMILES</label><input id="local-smiles" className="input-base" value={currentSmiles} onChange={event => setCurrentSmiles(event.target.value)} /></div>}
           </div>
 
           {/* SMILES Preview Section */}

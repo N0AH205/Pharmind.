@@ -1,77 +1,201 @@
 .wrapper {
-  margin-top: 16px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
-.dropzone {
-  border: 1px dashed rgba(37, 184, 253, 0.42);
-  background: rgba(37, 184, 253, 0.06);
-  border-radius: var(--radius-md, 8px);
-  padding: 12px;
+.tabBar {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-color, var(--bg-elevated));
+  padding-bottom: 6px;
+}
+
+.tabBtn {
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted, var(--slate));
+  border-radius: 3px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
+.tabBtn:hover {
+  color: var(--text-primary, var(--ink));
+  background: var(--bg-hover, var(--bg-surface));
+}
+
+.tabBtnActive {
+  color: var(--slate);
+  background: var(--border-subtle);
+  font-weight: 600;
+}
+
+.dropzone {
+  border: 2px dashed var(--border-subtle);
+  background: var(--border-subtle);
+  border-radius: 3px;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
 .dropzone:hover {
-  background: rgba(37, 184, 253, 0.12);
-  border-color: rgba(37, 184, 253, 0.58);
+  background: var(--border-subtle);
+  border-color: var(--border-subtle);
 }
 
 .icon {
-  font-size: 1.2rem;
+  font-size: 2rem;
 }
 
 .textGroup {
   display: flex;
   flex-direction: column;
+  gap: 4px;
 }
 
 .title {
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 600;
-  color: var(--text-primary, #f1f5f9);
+  color: var(--text-primary, var(--ink));
 }
 
 .sub {
-  font-size: 0.68rem;
-  color: var(--text-muted, #94a3b8);
-  line-height: 1.2;
+  font-size: 0.75rem;
+  color: var(--text-muted, var(--slate));
+  line-height: 1.3;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary, var(--slate));
 }
 
 .drugNameInput {
   display: block;
   width: 100%;
-  margin-top: 6px;
-  padding: 7px 8px;
-  border: 1px solid #d9dde3;
-  border-radius: 6px;
-  background: #ffffff;
-  color: var(--text-primary, #f1f5f9);
-  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color, var(--bg-elevated));
+  border-radius: 3px;
+  background: var(--bg-surface, var(--bg-surface));
+  color: var(--text-primary, var(--ink));
+  font-size: 0.8rem;
+  transition: border-color 0.2s ease;
+}
+
+.drugNameInput:focus {
+  outline: none;
+  border-color: var(--slate);
+  box-shadow: none;
 }
 
 .status {
-  font-size: 0.72rem;
-  padding: 6px 10px;
-  border-radius: 6px;
+  font-size: 0.78rem;
+  padding: 8px 12px;
+  border-radius: 3px;
   display: flex;
   align-items: center;
+  gap: 8px;
   line-height: 1.3;
 }
 
 .statusSuccess {
-  background: rgba(52, 211, 153, 0.1);
-  color: #16836c;
-  border: 1px solid rgba(22, 131, 108, 0.2);
+  background: var(--border-subtle);
+  color: var(--slate);
+  border: 1px solid var(--border-subtle);
 }
 
 .statusError {
-  background: rgba(244, 63, 94, 0.1);
-  color: #f43f5e;
-  border: 1px solid rgba(244, 63, 94, 0.2);
+  background: var(--border-subtle);
+  color: var(--slate);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Paper Library List */
+.paperList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.emptyList {
+  font-size: 0.8rem;
+  color: var(--text-muted, var(--slate));
+  text-align: center;
+  padding: 24px 12px;
+}
+
+.paperItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color, var(--bg-elevated));
+  background: var(--bg-surface, var(--bg-surface));
+  border-radius: 3px;
+  transition: background 0.15s ease;
+}
+
+.paperItem:hover {
+  background: var(--bg-hover, var(--bg-surface));
+}
+
+.paperInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.paperName {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary, var(--ink));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+.paperMeta {
+  font-size: 0.7rem;
+  color: var(--text-muted, var(--slate));
+  display: flex;
+  gap: 8px;
+}
+
+.deleteBtn {
+  background: none;
+  border: none;
+  color: var(--slate);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  transition: background 0.15s ease;
+}
+
+.deleteBtn:hover {
+  background: var(--border-subtle);
 }

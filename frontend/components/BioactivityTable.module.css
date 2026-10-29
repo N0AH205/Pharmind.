@@ -28,9 +28,9 @@
 .countBadge {
   font-size: 0.72rem;
   padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(37, 99, 235, 0.12);
-  color: #2563eb;
+  border-radius: 3px;
+  background: var(--border-subtle);
+  color: var(--slate);
   font-weight: 600;
 }
 
@@ -70,7 +70,7 @@
 }
 
 .table tr:hover td {
-  background: rgba(0, 0, 0, 0.02);
+  background: var(--border-subtle);
 }
 
 .targetCell {
@@ -93,8 +93,8 @@
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 4px;
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--bg-surface);
+  color: var(--slate);
   text-transform: uppercase;
 }
 
@@ -103,13 +103,13 @@
   font-family: "JetBrains Mono", monospace;
   font-size: 0.76rem;
   font-weight: 700;
-  color: #0284c7;
+  color: var(--slate);
 }
 
 .valueCell {
   font-family: "JetBrains Mono", monospace;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--ink);
   white-space: nowrap;
 }
 

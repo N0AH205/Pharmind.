@@ -1,8 +1,8 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(8, 10, 15, 0.8);
-  backdrop-filter: blur(10px);
+  background: var(--border-subtle);
+
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -11,15 +11,15 @@
 }
 
 .modal {
-  background: #ffffff;
-  border: 1px solid #dfe4e9;
-  border-radius: 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 3px;
   width: 100%;
   max-width: 1000px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 22px 54px rgba(30, 43, 56, 0.22);
+  box-shadow: none;
 }
 
 .header {
@@ -27,8 +27,8 @@
   align-items: flex-start;
   justify-content: space-between;
   padding: 16px 24px;
-  border-bottom: 1px solid #e7e9ed;
-  background: #f7f8fa;
+  border-bottom: 1px solid var(--bg-elevated);
+  background: var(--bg-surface);
 }
 
 .titleGroup {
@@ -45,19 +45,19 @@
   margin: 0;
   font-size: 1.1rem;
   font-weight: 600;
-  color: var(--text-primary, #f1f5f9);
+  color: var(--text-primary, var(--bg-surface));
 }
 
 .subTitle {
   margin: 2px 0 0 0;
   font-size: 0.8rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted, var(--steel));
 }
 
 .closeBtn {
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: var(--steel);
   font-size: 1.2rem;
   cursor: pointer;
 }
@@ -76,7 +76,7 @@
 
 .divider {
   width: 1px;
-  background: #f0f2f5;
+  background: var(--bg-surface);
 }
 
 .col {
@@ -86,19 +86,19 @@
 }
 
 .colHeader {
-  border-bottom: 1px solid rgba(37, 184, 253, 0.24);
+  border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 8px;
 }
 
 .colHeader h4 {
   margin: 0;
   font-size: 1.1rem;
-  color: #087ca9;
+  color: var(--slate);
 }
 
 .colHeader code {
   font-size: 0.72rem;
-  color: #94a3b8;
+  color: var(--steel);
   word-break: break-all;
 }
 
@@ -107,30 +107,30 @@
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #38bdf8;
+  color: var(--steel);
 }
 
 .section p {
   margin: 0;
   font-size: 0.85rem;
   line-height: 1.5;
-  color: #cbd5e1;
+  color: var(--bg-elevated);
 }
 
 .footer {
   padding: 14px 24px;
-  border-top: 1px solid #e7e9ed;
+  border-top: 1px solid var(--bg-elevated);
   display: flex;
   justify-content: flex-end;
-  background: #f7f8fa;
+  background: var(--bg-surface);
 }
 
 .actionBtn {
   padding: 8px 18px;
-  background: #ffffff;
-  border: 1px solid #dfe4e9;
-  border-radius: 6px;
-  color: #f1f5f9;
+  background: var(--bg-surface);
+  border: 1px solid var(--bg-elevated);
+  border-radius: 3px;
+  color: var(--bg-surface);
   font-size: 0.85rem;
   cursor: pointer;
 }

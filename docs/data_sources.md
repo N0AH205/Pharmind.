@@ -2,15 +2,56 @@
 
 Pharmer stores indexed passages and their source metadata in the local ChromaDB database. Online ingestion is an explicit action; the database is not bundled with the source repository. Content use and redistribution remain subject to the original source's terms and copyright.
 
-## Integrated sources
+## Integrated and Federated Datasets
 
-| Source | How Pharmer uses it | Stored evidence and limits |
-|---|---|---|
-| [PubChem](https://pubchem.ncbi.nlm.nih.gov/) | Resolves compound properties and synonyms during ingestion | Compound records and identifiers; the runtime monograph structure resolver is local RDKit plus a small built-in drug dictionary |
-| [DailyMed](https://dailymed.nlm.nih.gov/) | Searches and downloads FDA Structured Product Label documents during ingestion or just-in-time ingestion | Clinical label sections are split into overlapping local passages; the selected label is the one with the most recognized sections |
-| [PubMed](https://pubmed.ncbi.nlm.nih.gov/) | Searches NCBI E-utilities for topic-specific literature during ingestion | Stores titles and abstracts, plus available authors, journal, publication date, DOI, and PMID; full article text is not downloaded |
-| [ClinicalTrials.gov](https://clinicaltrials.gov/) | Searches API v2 for studies with the drug listed as an intervention | Stores bounded study summaries, phase/status, interventions, planned outcomes, eligibility text, posted outcome analyses when present, update dates, NCT IDs, and record links. Registry records are not equivalent to peer-reviewed publications; study status and results must be checked at the cited record |
-| User PDFs | Extracts text from uploaded, text-based PDFs | Locally chunked passages; scanned pages require OCR first. Associate an upload with the exact compound name to retrieve it for name-filtered queries when there is no indexed CID |
+Pharmer systematically queries, links, and cross-references authoritative pharmaceutical data across 8 major domains:
+
+### 1. Chemical Identity and Physicochemical Properties
+- **PubChem PUG-REST & PUG-View**: Primary chemical resolver for 2D/3D structures, SMILES, InChIKey, IUPAC names, synonyms, and physicochemical properties (LogP, molecular formula, weight).
+- **ChEBI**: Standardized ontological entity references and biological roles.
+- **ChEMBL**: EMBL-EBI curated bioactivity database providing stable compound identifiers (`CHEMBL_ID`).
+- **DrugCentral**: Verified drug identifiers, structures, and approved chemical forms.
+- **FDA GSRS**: Unique Ingredient Identifiers (UNII) assigned through the FDA substance registration system.
+- **EPA CompTox / DSSTox**: Environmental and toxicological substance identifiers and physicochemical values.
+
+### 2. Pharmacodynamics and Molecular Targets
+- **DrugCentral**: Curated binding affinities ($K_d$, $K_i$, $IC_{50}$) for human receptor, ion channel, and transporter targets.
+- **ChEMBL Bioactivities**: Experimental assay measurements, target organism, and action types (agonist, antagonist, inhibitor).
+- **BindingDB**: High-resolution experimental affinity records and ligand-target binding parameters.
+- **IUPHAR / BPS Guide to PHARMACOLOGY**: Curated target families, pharmacodynamic classifications, and receptor mechanisms.
+- **PubChem BioAssay & Binding MOAD / RCSB PDB**: Target structure binding conformations and bioassay results.
+
+### 3. Pharmacokinetics and ADME
+- **PubChem PUG-View**: Structured pharmacological monographs for absorption, distribution, metabolism, elimination half-life, and route-dependent excretion rates.
+- **openFDA & DailyMed**: Official FDA Structured Product Labeling (SPL) covering bioavailability ($F\%$), volume of distribution ($V_d$), plasma protein binding, and CYP metabolic enzyme profiles.
+- **PharmGKB**: Pharmacogenomic associations, metabolic pathways, and VIP gene annotations.
+- **Europe PMC & PubMed**: Programmatic literature search for primary human pharmacokinetic studies reporting $AUC$, $C_{max}$, $T_{max}$, and clearance ($CL$).
+
+### 4. Toxicology and Safety
+- **openFDA**: Boxed warnings, black box alerts, contraindications, and spontaneous adverse event summaries.
+- **SIDER**: Curated MedDRA adverse drug reaction profiles and frequency data.
+- **PubChem HSDB & TOXNET**: Human emergency treatment protocols, acute toxicity excerpts, antidote management, and animal $LD_{50}$ values.
+- **EPA ToxCast / Tox21 & ECHA**: High-throughput toxicity screening and nonclinical hazard classifications.
+
+### 5. Clinical Trials, Indications, and Regulatory Status
+- **DrugCentral & openFDA**: Curated FDA-approved indications, off-label clinical uses, and pediatric/adult patient populations.
+- **ClinicalTrials.gov (API v2)**: Real-time Phase 1–4 clinical trial records, intervention arms, and posted outcome measures.
+- **FDA Drugs@FDA & Orange Book**: Approval history, therapeutic equivalence, and exclusivity.
+- **Badan Pengawas Obat dan Makanan (BPOM)**: Official Indonesian drug registration records, marketing authorization codes, and regulatory status.
+- **WHO ATC/DDD Index**: Anatomical Therapeutic Chemical classification codes and Defined Daily Doses.
+
+### 6. Drug Interactions and Pharmacogenomics
+- **openFDA & DailyMed Section 7**: Product-specific pharmacodynamic and pharmacokinetic drug interactions.
+- **PharmGKB & CPIC**: Evidence-based Clinical Pharmacogenetics Implementation Consortium guidelines and dosing recommendations.
+
+### 7. Gene Expression & Perturbation Signatures
+- **LINCS L1000 / Connectivity Map (CLUE)**, **NCBI GEO**, **DepMap**: Cellular perturbation profiles, cancer cell-line dependencies, and transcriptomic response signatures.
+
+### 8. Scientific Literature & Supplementary Data
+- **PubMed (NCBI E-Utilities)**: Peer-reviewed biomedical publications and abstracts.
+- **Europe PMC REST API**: High-speed European open-access literature search, DOIs, and full-text links.
+- **NCBI StatPearls**: Peer-reviewed clinical drug monographs.
+- **User PDFs**: Extracts text from user-uploaded PDF scientific papers and clinical guidelines.
 
 The current starter benchmark indexes a small, hardcoded drug set. Full ingestion retrieves up to three useful DailyMed labels per drug, several topic-focused batches of PubMed abstracts (deduplicated by PMID), and up to 15 ClinicalTrials.gov records. The quick-start Aspirin demo intentionally uses much smaller limits. These bounds make initial setup feasible, but this remains a discovery seed, not a comprehensive evidence corpus: PubMed full text is not downloaded, trial retrieval is capped, and source ranking may miss relevant records. The ingestion summary reports stored chunks by drug and field. Re-run ingestion to build or refresh the local index. Ingestion uses the local FastEmbed model; it does not require a cloud embedding API key.
 

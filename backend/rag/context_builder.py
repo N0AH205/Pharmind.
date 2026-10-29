@@ -18,7 +18,10 @@ Usage in pipeline.py:
 from __future__ import annotations
 
 
-def build_context(chunks: list[dict]) -> tuple[str, dict[str, dict]]:
+def build_context(
+    chunks: list[dict],
+    max_chunks_per_group: int | None = None,
+) -> tuple[str, dict[str, dict]]:
     """
     Label each chunk SOURCE_N and format them into a single context string.
 
@@ -32,16 +35,26 @@ def build_context(chunks: list[dict]) -> tuple[str, dict[str, dict]]:
     """
     source_map: dict[str, dict] = {}
     parts: list[str] = []
+    group_counts: dict[str, int] = {}
 
-    for i, chunk in enumerate(chunks):
-        sid = f"SOURCE_{i + 1}"
+    for chunk in chunks:
+        groups = chunk.get("retrieval_groups") or [chunk.get("retrieval_group", chunk.get("field", "general"))]
+        groups = [group for group in groups if group]
+        if max_chunks_per_group is not None and groups and all(
+            group_counts.get(group, 0) >= max_chunks_per_group for group in groups
+        ):
+            continue
+
+        sid = f"SOURCE_{len(source_map) + 1}"
         source_map[sid] = chunk
+        for group in groups:
+            group_counts[group] = group_counts.get(group, 0) + 1
 
         header = (
             f"[{sid}]\n"
             f"Source : {chunk.get('source', 'Unknown')}\n"
             f"Field  : {chunk.get('field', 'general')}\n"
-            f"Retrieved for : {chunk.get('retrieval_group', chunk.get('field', 'general'))}\n"
+            f"Retrieved for : {', '.join(groups) or 'general'}\n"
             f"Authors : {chunk.get('authors', 'not provided')}\n"
             f"Journal : {chunk.get('journal', 'not provided')}\n"
             f"Published : {chunk.get('publication_date', 'not provided')}\n"

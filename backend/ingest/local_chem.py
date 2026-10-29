@@ -91,6 +91,12 @@ COMMON_DRUGS_DB: dict[str, dict[str, Any]] = {
         "pubchem_cid": 60823,
         "smiles": "CC(C)c1c(C(=O)Nc2ccccc2F)c(-c2ccccc2)c(-c2ccc(F)cc2)n1CCC(O)CC(O)CC(=O)O",
     },
+    "cc(c)c1c(c(=o)nc2ccccc2f)c(-c2ccccc2)c(-c2ccc(f)cc2)n1ccc(o)cc(o)cc(=o)o": {
+        "common_name": "Atorvastatin",
+        "synonyms": ["Lipitor", "Torvast"],
+        "pubchem_cid": 60823,
+        "smiles": "CC(C)c1c(C(=O)Nc2ccccc2F)c(-c2ccccc2)c(-c2ccc(F)cc2)n1CCC(O)CC(O)CC(=O)O",
+    },
     "60823": {
         "common_name": "Atorvastatin",
         "synonyms": ["Lipitor"],
@@ -181,6 +187,12 @@ def parse_smiles_offline(smiles_str: str) -> dict[str, Any] | None:
     except Exception:
         pass
 
+    logp = None
+    try:
+        logp = round(float(Descriptors.MolLogP(mol)), 2)
+    except Exception:
+        pass
+
     svg_uri = generate_svg_data_uri(mol)
 
     return {
@@ -189,6 +201,7 @@ def parse_smiles_offline(smiles_str: str) -> dict[str, Any] | None:
         "molecular_weight": mw,
         "inchi": inchi,
         "inchikey": inchikey,
+        "logp": logp,
         "image_url": svg_uri,
     }
 
@@ -238,7 +251,23 @@ async def enrich_structure_local(query: str) -> dict[str, Any]:
     image_url = rdkit_data.get("image_url") if rdkit_data else None
     inchi = rdkit_data.get("inchi") if rdkit_data else None
 
-    # Derive fallback common name from formula/smiles if missing
+    # If common name or CID is missing, attempt quick PubChem lookup
+    if not pubchem_cid or not common_name or common_name.startswith("Compound ("):
+        try:
+            from ingest.pubchem import get_compound_by_smiles, get_synonyms
+            online_props = await get_compound_by_smiles(smiles)
+            if online_props and online_props.get("CID"):
+                pubchem_cid = int(online_props["CID"])
+                fetched_syns = await get_synonyms(pubchem_cid, max_synonyms=8)
+                if fetched_syns:
+                    common_name = fetched_syns[0]
+                    synonyms = fetched_syns
+                elif online_props.get("IUPACName"):
+                    common_name = online_props["IUPACName"]
+        except Exception:
+            pass
+
+    # Derive fallback common name from formula/smiles if still missing
     if not common_name:
         common_name = f"Compound ({formula})" if formula else smiles
 
@@ -247,6 +276,9 @@ async def enrich_structure_local(query: str) -> dict[str, Any]:
     return {
         "smiles": smiles,
         "inchi": inchi,
+        "inchikey": rdkit_data.get("inchikey") if rdkit_data else None,
+        "inchi_key": rdkit_data.get("inchikey") if rdkit_data else None,
+        "logp": rdkit_data.get("logp") if rdkit_data else None,
         "iupac_name": None,  # Computed offline via formula/smiles
         "common_name": common_name,
         "synonyms": synonyms,

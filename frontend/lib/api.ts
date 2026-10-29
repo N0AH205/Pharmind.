@@ -1,4 +1,5 @@
-import type { QueryRequest, QueryResponse } from "./types";
+import { connectionHeaders } from "./connection";
+import type { ChatMode, QueryRequest, QueryResponse } from "./types";
 
 const API_BASE = "/api";
 
@@ -7,7 +8,7 @@ export async function queryDrug(smiles: string): Promise<QueryResponse> {
 
   const res = await fetch(`${API_BASE}/query`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...connectionHeaders() },
     body: JSON.stringify(body),
   });
 
@@ -30,7 +31,7 @@ export async function queryDrugStream(smiles: string, callbacks: StreamCallbacks
   try {
     const res = await fetch(`${API_BASE}/query/stream`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...connectionHeaders() },
       body: JSON.stringify({ smiles }),
     });
 
@@ -79,17 +80,22 @@ export async function sendChatMessage(
   question: string,
   history: { role: "user" | "assistant"; content: string }[] = [],
   activeDrug: { name: string; cid?: string } = { name: "" },
+  mode: ChatMode = "structure_science",
 ) {
-  const res = await fetch(`${API_BASE}/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, history, active_drug: { name: activeDrug.name, cid: activeDrug.cid ?? null } }),
-  });
-  if (!res.ok) {
-    const errText = await res.text();
-    return { success: false, error: errText || `HTTP ${res.status}` };
+  try {
+    const res = await fetch(`${API_BASE}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...connectionHeaders() },
+      body: JSON.stringify({ question, history, active_drug: { name: activeDrug.name, cid: activeDrug.cid ?? null }, mode }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      return { success: false, error: errText || `HTTP ${res.status}` };
+    }
+    return res.json();
+  } catch {
+    return { success: false, error: "Could not reach the local backend. Start it and try again." };
   }
-  return res.json();
 }
 
 export async function uploadPDF(file: File, drugName: string = "") {
@@ -99,6 +105,7 @@ export async function uploadPDF(file: File, drugName: string = "") {
   const res = await fetch(`${API_BASE}/upload-pdf?drug_name=${encodeURIComponent(drugName)}`, {
     method: "POST",
     body: formData,
+    headers: connectionHeaders(),
   });
 
   if (!res.ok) {
@@ -106,5 +113,25 @@ export async function uploadPDF(file: File, drugName: string = "") {
     return { success: false, error: errText || `HTTP ${res.status}` };
   }
 
+  return res.json();
+}
+
+export async function getUploadedPDFs() {
+  const res = await fetch(`${API_BASE}/uploaded-pdfs`);
+  if (!res.ok) {
+    const errText = await res.text();
+    return { success: false, error: errText || `HTTP ${res.status}` };
+  }
+  return res.json();
+}
+
+export async function deleteUploadedPDF(filename: string) {
+  const res = await fetch(`${API_BASE}/uploaded-pdfs/${encodeURIComponent(filename)}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    return { success: false, error: errText || `HTTP ${res.status}` };
+  }
   return res.json();
 }

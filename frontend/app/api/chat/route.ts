@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
 
     const res = await fetch(`${backendUrl}/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Pharmind-Connection": req.headers.get("X-Pharmind-Connection") || "" },
       body: JSON.stringify(body),
     });
 

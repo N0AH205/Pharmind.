@@ -344,38 +344,25 @@ async def ingest_drug(drug: dict, collection, pubmed_limit: int | None = None) -
     except Exception as exc:
         print(f"  ChEMBL: ingestion skipped ({exc})")
 
-    # 6. openFDA — direct FDA drug label sections
+    # 6. openFDA — direct FDA drug label sections (including ADME, contraindications, and toxicology)
     try:
-        from ingest.openfda import fetch_openfda_label
-        fda_label = await fetch_openfda_label(name)
-        if fda_label:
-            fda_sections = {
-                "indications": fda_label.get("indications"),
-                "contraindications": fda_label.get("contraindications"),
-                "adverse_effects": fda_label.get("adverse_reactions"),
-                "interactions": fda_label.get("drug_interactions"),
-                "moa": fda_label.get("mechanism_of_action"),
-                "adme": fda_label.get("pharmacokinetics"),
-                "safety": fda_label.get("boxed_warning"),
-            }
-            added_fda = 0
-            for f_key, f_val in fda_sections.items():
-                if f_val:
-                    for passage in _chunk_text(f_val):
-                        chunks.append({
-                            "text": passage,
-                            "source": f"openFDA Approved Label – {canonical_name}",
-                            "url": "https://open.fda.gov/apis/drug/label/",
-                            "drug": canonical_name,
-                            "pubchem_cid": cid_str,
-                            "field": f_key,
-                            "retrieval_group": f_key,
-                            "document_id": str(fda_label.get("spl_id") or "openfda"),
-                        })
-                        added_fda += 1
-            print(f"  openFDA: ingested {added_fda} section chunk(s)")
+        from ingest.openfda import fetch_openfda_passages
+        fda_chunks = await fetch_openfda_passages(name, canonical_name=canonical_name, cid_str=cid_str)
+        if fda_chunks:
+            chunks.extend(fda_chunks)
+            print(f"  openFDA: ingested {len(fda_chunks)} section chunk(s)")
     except Exception as exc:
         print(f"  openFDA: ingestion skipped ({exc})")
+
+    # 7. NCBI StatPearls — peer-reviewed clinical monographs
+    try:
+        from ingest.statpearls import fetch_statpearls_passages
+        sp_passages = await fetch_statpearls_passages(name, canonical_name=canonical_name, cid_str=cid_str)
+        if sp_passages:
+            chunks.extend(sp_passages)
+            print(f"  StatPearls: ingested {len(sp_passages)} peer-reviewed clinical monograph passage(s)")
+    except Exception as exc:
+        print(f"  StatPearls: ingestion skipped ({exc})")
 
     if not chunks:
         print(f"  WARNING: No chunks collected for {name} — skipping")

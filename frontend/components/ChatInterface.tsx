@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import Image from "next/image";
 import type { ChatMessage, ChatSource } from "@/lib/types";
 import DrugInfoCard from "./DrugInfoCard";
 import styles from "./ChatInterface.module.css";
@@ -16,7 +15,7 @@ export default function ChatInterface({ messages, loading, streamStatus }: Props
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: "auto" });
   }, [messages, loading]);
 
   if (messages.length === 0 && !loading) {
@@ -133,6 +132,9 @@ function cleanUrl(url?: string): string {
 
 function getSourceMeta(url: string, name?: string): { tag: string; label: string } {
   const lower = (url || "").toLowerCase();
+  if (lower.startsWith("doc:") || (name || "").toLowerCase().includes("pdf")) {
+    return { tag: "PDF Document", label: name || "Indexed Literature PDF" };
+  }
   if (lower.includes("dailymed.nlm.nih.gov")) {
     return { tag: "DailyMed", label: name || "DailyMed FDA Drug Label" };
   }
@@ -312,7 +314,7 @@ function FormattedProse({
                       e.preventDefault();
                       document
                         .getElementById(`source-${num}`)
-                        ?.scrollIntoView({ behavior: "smooth" });
+                        ?.scrollIntoView({ behavior: "auto" });
                     }
                   }}
                 >
@@ -374,97 +376,53 @@ function AssistantTextCard({ msg }: { msg: ChatMessage }) {
       {sources.length > 0 && (
         <div className={styles.sourcesContainer}>
           <div className={styles.sourcesHeader}>
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-            </svg>
             <span className={styles.sourcesTitle}>Sources &amp; References</span>
-            <span className={styles.sourcesCount}>{sources.length}</span>
+            <span className={styles.sourcesCount}>· {sources.length}</span>
           </div>
 
           <div className={styles.sourcesGrid}>
             {sources.map((src) => {
-              const lower = (src.url || "").toLowerCase();
-              const isPubMed = lower.includes("pubmed.ncbi.nlm.nih.gov");
-              const isPubChem = lower.includes("pubchem.ncbi.nlm.nih.gov");
-              const isDailyMed = lower.includes("dailymed.nlm.nih.gov");
-              const isFDA = lower.includes("fda.gov");
-              const isChEMBL = lower.includes("chembl");
-              const isClinicalTrials = lower.includes("clinicaltrials.gov");
-
-              const badgeClass = isPubMed
-                ? styles.badgePubMed
-                : isPubChem
-                ? styles.badgePubChem
-                : isDailyMed
-                ? styles.badgeDailyMed
-                : isFDA
-                ? styles.badgeFDA
-                : isChEMBL
-                ? styles.badgeChEMBL
-                : isClinicalTrials
-                ? styles.badgeClinicalTrials
-                : styles.badgeDefault;
-
-              const badgeLabel = isPubMed
-                ? "PubMed"
-                : isPubChem
-                ? "PubChem"
-                : isDailyMed
-                ? "DailyMed"
-                : isFDA
-                ? "FDA"
-                : isChEMBL
-                ? "ChEMBL"
-                : isClinicalTrials
-                ? "ClinicalTrials"
-                : "Literature";
-
               return (
                 <a
                   key={src.num}
                   id={`source-${src.num}`}
-                  href={src.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={src.url.startsWith("doc:") ? undefined : src.url}
+                  target={src.url.startsWith("doc:") ? undefined : "_blank"}
+                  rel={src.url.startsWith("doc:") ? undefined : "noopener noreferrer"}
                   className={styles.sourceCard}
                   title={src.url}
+                  onClick={(e) => {
+                    if (src.url.startsWith("doc:")) {
+                      e.preventDefault();
+                    }
+                  }}
                 >
                   <span className={styles.sourceNum}>{src.num}</span>
                   <div className={styles.sourceInfo}>
-                    <div className={styles.sourceMeta}>
-                      <span className={badgeClass}>
-                        {badgeLabel}
-                      </span>
-                      <span className={styles.sourceName}>{src.name}</span>
-                    </div>
-                    <span className={styles.sourceUrl}>{src.url}</span>
+                    <span className={styles.sourceName}>{src.name}</span>
+                    {src.text && (
+                      <div className={styles.sourceSnippet} title={src.text}>
+                        {src.text.trim()}
+                      </div>
+                    )}
                   </div>
-                  <svg
-                    className={styles.sourceIcon}
-                    width="13"
-                    height="13"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <line x1="7" y1="17" x2="17" y2="7" />
-                    <polyline points="7 7 17 7 17 17" />
-                  </svg>
+                  {!src.url.startsWith("doc:") && (
+                    <svg
+                      className={styles.sourceIcon}
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <line x1="7" y1="17" x2="17" y2="7" />
+                      <polyline points="7 7 17 7 17 17" />
+                    </svg>
+                  )}
                 </a>
               );
             })}

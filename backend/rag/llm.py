@@ -17,13 +17,14 @@ from typing import Any
 
 import ollama as ollama_sdk
 from pydantic import BaseModel
-from rag.config import require_network_allowed
+from rag.config import get_connection
+from rag.connection_api import ollama_host
 
 logger = logging.getLogger(__name__)
 
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
@@ -36,10 +37,10 @@ def _get_gemini_model_candidates() -> list[str]:
     """Return ordered list of Gemini models to try, falling back on 503/429/timeout errors."""
     raw_fallbacks = os.getenv(
         "GEMINI_FALLBACK_MODELS",
-        "gemini-2.0-flash,gemini-1.5-flash,gemini-3.5-flash,gemini-3.1-flash-lite,gemini-flash-latest",
+        "",
     )
     fallbacks = [m.strip() for m in raw_fallbacks.split(",") if m.strip()]
-    candidates = [GEMINI_MODEL]
+    candidates = [get_connection().model]
     for fb in fallbacks:
         if fb not in candidates:
             candidates.append(fb)
@@ -85,16 +86,16 @@ async def generate_structured_output(
     Missing fields must be { "content": null, "missing": true }.
     Fabricating information is explicitly forbidden.
     """
-    if LLM_PROVIDER == "ollama":
+    if get_connection().provider == "ollama":
         return await _call_ollama(system_prompt, user_message, output_schema)
-    elif LLM_PROVIDER == "openai":
+    elif get_connection().provider == "openai":
         return await _call_openai(system_prompt, user_message, output_schema)
-    elif LLM_PROVIDER == "anthropic":
+    elif get_connection().provider == "anthropic":
         return await _call_anthropic(system_prompt, user_message, output_schema)
-    elif LLM_PROVIDER == "gemini":
+    elif get_connection().provider == "gemini":
         return await _call_gemini(system_prompt, user_message, output_schema)
     else:
-        raise ValueError(f"Unknown LLM_PROVIDER: {LLM_PROVIDER!r}")
+        raise ValueError(f"Unknown model provider: {get_connection().provider!r}")
 
 
 async def generate_chat_response(
@@ -102,46 +103,46 @@ async def generate_chat_response(
     messages: list[dict[str, str]],
 ) -> str:
     """Generate a conversational answer using the configured model provider."""
-    if LLM_PROVIDER == "ollama":
-        client = ollama_sdk.AsyncClient(host=OLLAMA_BASE_URL)
+    if get_connection().provider == "ollama":
+        client = ollama_sdk.AsyncClient(host=ollama_host(get_connection()))
         response = await client.chat(
-            model=OLLAMA_MODEL,
+            model=get_connection().model,
             messages=[{"role": "system", "content": system_prompt}, *messages],
             options={"temperature": 0.2, "num_ctx": 8192},
         )
         return response.message.content
 
-    if LLM_PROVIDER == "openai":
-        require_network_allowed("OpenAI chat inference")
+    if get_connection().provider == "openai":
+
         from openai import AsyncOpenAI
 
-        client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+        client = AsyncOpenAI(api_key=get_connection().api_key)
         response = await client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=get_connection().model,
             temperature=0.2,
             messages=[{"role": "system", "content": system_prompt}, *messages],
         )
         return response.choices[0].message.content or ""
 
-    if LLM_PROVIDER == "anthropic":
-        require_network_allowed("Anthropic chat inference")
+    if get_connection().provider == "anthropic":
+
         import anthropic
 
-        client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+        client = anthropic.AsyncAnthropic(api_key=get_connection().api_key)
         response = await client.messages.create(
-            model=ANTHROPIC_MODEL,
+            model=get_connection().model,
             max_tokens=2048,
             system=system_prompt,
             messages=messages,
         )
         return "".join(block.text for block in response.content if getattr(block, "text", None))
 
-    if LLM_PROVIDER == "gemini":
-        require_network_allowed("Gemini chat inference")
+    if get_connection().provider == "gemini":
+
         import httpx
 
-        if not GEMINI_API_KEY:
-            raise ValueError("GEMINI_API_KEY environment variable is not set.")
+        if not get_connection().api_key:
+            raise ValueError("Add a provider API key in connection settings.")
 
         # Ensure alternating user/model turns for the Gemini REST API
         normalized_contents: list[dict[str, Any]] = []
@@ -164,10 +165,10 @@ async def generate_chat_response(
         model_candidates = _get_gemini_model_candidates()
         last_exc = None
         for i, model_name in enumerate(model_candidates):
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
             try:
                 async with httpx.AsyncClient(timeout=45.0) as client:
-                    response = await client.post(url, json={
+                    response = await client.post(url, headers={"x-goog-api-key": get_connection().api_key}, json={
                         "systemInstruction": {"parts": [{"text": system_prompt}]},
                         "contents": normalized_contents,
                         "generationConfig": {"temperature": 0.2},
@@ -189,7 +190,7 @@ async def generate_chat_response(
                     continue
                 raise last_exc
 
-    raise ValueError(f"Unknown LLM_PROVIDER: {LLM_PROVIDER!r}")
+    raise ValueError(f"Unknown model provider: {get_connection().provider!r}")
 
 
 async def generate_structured_output_stream(
@@ -201,14 +202,14 @@ async def generate_structured_output_stream(
     Stream tokens from local Ollama instance while generating structured output.
     Yields chunks of generated text tokens.
     """
-    if LLM_PROVIDER == "ollama":
-        client = ollama_sdk.AsyncClient(host=OLLAMA_BASE_URL)
+    if get_connection().provider == "ollama":
+        client = ollama_sdk.AsyncClient(host=ollama_host(get_connection()))
         format_option: Any = "json"
         if output_schema and hasattr(output_schema, "model_json_schema"):
             format_option = _llm_output_schema(output_schema)
 
         async for chunk in await client.chat(
-            model=OLLAMA_MODEL,
+            model=get_connection().model,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user",   "content": user_message},
@@ -241,14 +242,14 @@ async def _call_ollama(
     Passes schema.model_json_schema() to strictly constrain Ollama to the Pydantic schema.
     Temperature 0.1 = factual and deterministic.
     """
-    client = ollama_sdk.AsyncClient(host=OLLAMA_BASE_URL)
+    client = ollama_sdk.AsyncClient(host=ollama_host(get_connection()))
 
     format_option: Any = "json"
     if schema and hasattr(schema, "model_json_schema"):
         format_option = _llm_output_schema(schema)
 
     response = await client.chat(
-        model=OLLAMA_MODEL,
+        model=get_connection().model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user",   "content": user_message},
@@ -282,16 +283,16 @@ async def _call_openai(
 ) -> dict:
     """
     Call OpenAI API with JSON mode.
-    Requires: pip install openai  and  OPENAI_API_KEY env var.
+    Uses the OpenAI key from the current connection.
     """
     try:
         from openai import AsyncOpenAI
     except ImportError:
         raise ImportError("Run: pip install openai") from None
 
-    client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+    client = AsyncOpenAI(api_key=get_connection().api_key)
     resp = await client.chat.completions.create(
-        model=OPENAI_MODEL,
+        model=get_connection().model,
         response_format={"type": "json_object"},
         temperature=0.1,
         messages=[
@@ -315,16 +316,16 @@ async def _call_anthropic(
 ) -> dict:
     """
     Call Anthropic Claude API.
-    Requires: pip install anthropic  and  ANTHROPIC_API_KEY env var.
+    Uses the Anthropic key from the current connection.
     """
     try:
         import anthropic
     except ImportError:
         raise ImportError("Run: pip install anthropic") from None
 
-    client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+    client = anthropic.AsyncAnthropic(api_key=get_connection().api_key)
     msg = await client.messages.create(
-        model=ANTHROPIC_MODEL,
+        model=get_connection().model,
         max_tokens=4096,
         system=system_prompt,
         messages=[{"role": "user", "content": user_message}],
@@ -345,12 +346,12 @@ async def _call_gemini(
 ) -> dict:
     """
     Call Google Gemini API with JSON mode.
-    Requires: httpx  and  GEMINI_API_KEY env var.
+    Uses the Gemini key from the current connection.
     """
     import httpx
 
-    if not GEMINI_API_KEY:
-        raise ValueError("GEMINI_API_KEY environment variable is not set.")
+    if not get_connection().api_key:
+        raise ValueError("Add a provider API key in connection settings.")
 
     payload = {
         "contents": [
@@ -368,6 +369,7 @@ async def _call_gemini(
         },
         "generationConfig": {
             "responseMimeType": "application/json",
+            "maxOutputTokens": int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "16384")),
             "temperature": 0.1,
         }
     }
@@ -376,10 +378,10 @@ async def _call_gemini(
     last_exc = None
     data = None
     for i, model_name in enumerate(model_candidates):
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
         try:
             async with httpx.AsyncClient(timeout=45.0) as client:
-                resp = await client.post(url, json=payload)
+                resp = await client.post(url, headers={"x-goog-api-key": get_connection().api_key}, json=payload)
                 if resp.status_code in (503, 429, 404) and i < len(model_candidates) - 1:
                     logger.warning(
                         f"Gemini model '{model_name}' returned {resp.status_code}, automatically falling back to '{model_candidates[i+1]}'..."
@@ -390,6 +392,8 @@ async def _call_gemini(
             break
         except Exception as exc:
             last_exc = exc
+            if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code not in (404, 429, 503):
+                raise
             if i < len(model_candidates) - 1:
                 logger.warning(
                     f"Gemini model '{model_name}' failed ({exc}), automatically falling back to '{model_candidates[i+1]}'..."
@@ -398,13 +402,23 @@ async def _call_gemini(
             raise last_exc
 
     try:
-        raw = data["candidates"][0]["content"]["parts"][0]["text"]
-    except (KeyError, IndexError) as exc:
+        candidate = data["candidates"][0]
+        finish_reason = candidate.get("finishReason", "")
+        if finish_reason and finish_reason != "STOP":
+            raise ValueError(f"Gemini did not complete structured output (finishReason={finish_reason}).")
+        parts = candidate["content"]["parts"]
+        raw = "".join(part.get("text", "") for part in parts)
+        if not raw:
+            raise ValueError("Gemini returned no text for the structured response.")
+    except (KeyError, IndexError, TypeError) as exc:
         raise ValueError(f"Gemini API returned unexpected response format: {data}") from exc
 
     try:
-        return json.loads(raw)
+        parsed = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise ValueError(
             f"Gemini returned invalid JSON: {exc}\nRaw output (first 500 chars):\n{raw[:500]}"
         ) from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("Gemini structured response must be a JSON object.")
+    return parsed

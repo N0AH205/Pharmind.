@@ -12,7 +12,7 @@ def _module(study: dict, name: str) -> dict:
     return study.get("protocolSection", {}).get(name, {})
 
 
-async def search_drug_trials(drug_name: str, limit: int = 15) -> list[dict]:
+async def search_drug_trials(drug_name: str, limit: int = 15, strict: bool = False) -> list[dict]:
     """Fetch concise, attributable trial records mentioning a drug intervention."""
     require_network_allowed("ClinicalTrials.gov study search")
     params = {
@@ -27,6 +27,8 @@ async def search_drug_trials(drug_name: str, limit: int = 15) -> list[dict]:
             response.raise_for_status()
             studies = response.json().get("studies", [])
     except (httpx.HTTPError, ValueError):
+        if strict:
+            raise
         return []
 
     records = []

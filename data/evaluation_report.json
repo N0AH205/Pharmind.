@@ -1,65 +1,111 @@
 {
-  "timestamp": "2026-08-11T03:10:39.584138",
+  "timestamp": "2026-10-14T15:23:06.579164",
+  "model_provider": "gemini",
   "model_evaluated": "gemini-flash-lite-latest",
   "metrics_average": {
-    "avg_keyword_score": 33.9,
-    "avg_correctness_score": 59.1,
-    "avg_hallucination_score": 29.7,
+    "avg_keyword_score": 51.8,
+    "avg_correctness_score": null,
+    "avg_hallucination_score": null,
     "avg_citation_score": 100.0,
-    "avg_overall_score": 82.4
+    "avg_overall_score": 83.8,
+    "avg_field_coverage_score": 83.5,
+    "avg_citation_evidence_score": 100.0,
+    "avg_retrieval_recall_keyword_proxy": 82.7
   },
   "drugs_detail": [
     {
       "drug": "aspirin",
       "success": true,
-      "duration_sec": 15.2,
+      "duration_sec": 123.72,
       "schema_compliance": 100,
       "citation_score": 100.0,
-      "avg_keyword_score": 44.7,
-      "avg_correctness_score": 60.0,
-      "avg_hallucination_score": 38.6,
-      "overall_score": 80.4,
+      "citation_evidence_score": 100.0,
+      "field_coverage_score": 87.0,
+      "field_count": 23,
+      "populated_field_count": 20,
+      "retrieval_recall": {
+        "keyword_recall_proxy": 94.1,
+        "matched_terms": [
+          "inhibits",
+          "cyclooxygenase",
+          "COX-1",
+          "COX-2",
+          "acetylation",
+          "thromboxane A2",
+          "prostaglandin",
+          "pain",
+          "fever",
+          "arthritis",
+          "inflammation",
+          "myocardial infarction",
+          "stroke",
+          "cardiovascular",
+          "prophylaxis",
+          "rapidly absorbed",
+          "bioavailability",
+          "distribution",
+          "protein binding",
+          "albumin",
+          "hydrolyzed",
+          "salicylate",
+          "salicylic acid",
+          "liver",
+          "renal",
+          "excreted",
+          "half-life",
+          "urine",
+          "hypersensitivity",
+          "bleeding",
+          "Reye's syndrome",
+          "pregnancy"
+        ],
+        "expected_term_count": 34
+      },
+      "avg_keyword_score": 50.1,
+      "avg_correctness_score": null,
+      "avg_hallucination_score": null,
+      "overall_score": 84.3,
       "fields": {
         "mechanism_of_action": {
           "keyword_score": 71.4,
           "matched_keywords": [
-            "inhibits",
             "cyclooxygenase",
             "COX-1",
+            "COX-2",
             "thromboxane A2",
             "prostaglandin"
           ],
           "missing_keywords": [
-            "COX-2",
+            "inhibits",
             "acetylation"
           ],
-          "length": 307,
+          "length": 364,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 100,
-          "hallucination_score": 0,
-          "rationale": "The generated text accurately captures all the gold standard facts (inhibits, cyclooxygenase, COX-1, acetylation/acetyl group, thromboxane A2, prostaglandin) related to aspirin's mechanism of action without adding any unsupported claims outside the scope of the provided reference facts."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "indications": {
-          "keyword_score": 25.0,
+          "keyword_score": 87.5,
           "matched_keywords": [
-            "myocardial infarction",
-            "stroke"
-          ],
-          "missing_keywords": [
             "pain",
             "fever",
             "arthritis",
             "inflammation",
-            "cardiovascular",
+            "myocardial infarction",
+            "stroke",
+            "cardiovascular"
+          ],
+          "missing_keywords": [
             "prophylaxis"
           ],
-          "length": 325,
+          "length": 530,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 60,
-          "hallucination_score": 20,
-          "rationale": "The generated text successfully captures 'myocardial infarction', 'stroke', and prophylaxis-related concepts from the gold standard ('reduce the risk...'), but misses several other key gold standard facts such as 'pain', 'fever', 'arthritis', 'inflammation', and general 'cardiovascular'. It introduces specific disease states and phrasing not explicitly present in the gold standard (e.g., 'chronic coronary artery disease', 'unstable angina pectoris', 'transient ischemic attack'), leading to a minor hallucination/unsupported detail score."
+          "sources_count": 3,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "contraindications": {
           "keyword_score": 0.0,
@@ -71,126 +117,158 @@
             "peptic ulcer",
             "pregnancy"
           ],
-          "length": 0,
+          "length": 204,
           "has_sources": true,
-          "sources_count": 0,
-          "correctness_score": 0,
-          "hallucination_score": 0,
-          "rationale": "The generated text states 'Data unavailable / missing.' Therefore, none of the gold standard facts were captured (correctness = 0), and no unsupported details were added (hallucination = 0)."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "absorption": {
           "keyword_score": 33.3,
           "matched_keywords": [
-            "Tmax"
+            "rapidly absorbed"
           ],
           "missing_keywords": [
-            "rapidly absorbed",
-            "bioavailability"
+            "bioavailability",
+            "Tmax"
           ],
-          "length": 300,
+          "length": 207,
           "has_sources": true,
           "sources_count": 1,
-          "correctness_score": 60,
-          "hallucination_score": 80,
-          "rationale": "The gold standard facts mention rapidly absorbed, bioavailability, and Tmax. The generated text touches upon Tmax and absorption, capturing some of the expected concepts (resulting in a moderate correctness score), but introduces specific unsupported clinical details not found in the gold standard facts, such as encapsulated microparticles, Durlaza, specific hour values (1 and 2 hours), and specific affecting factors like food, alcohol, and gastric pH (resulting in a high hallucination score)."
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "distribution": {
           "keyword_score": 33.3,
           "matched_keywords": [
-            "distribution"
-          ],
-          "missing_keywords": [
-            "protein binding",
             "albumin"
           ],
-          "length": 109,
+          "missing_keywords": [
+            "distribution",
+            "protein binding"
+          ],
+          "length": 145,
           "has_sources": true,
           "sources_count": 1,
-          "correctness_score": 0,
-          "hallucination_score": 100,
-          "rationale": "The gold standard facts only specify distribution, protein binding, and albumin. The generated text discusses the volume of distribution and specific numerical values (170 mL/kg), which are completely absent from the gold standard facts, resulting in a correctness score of 0 and a high hallucination score of 100."
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "metabolism": {
-          "keyword_score": 75.0,
+          "keyword_score": 100.0,
           "matched_keywords": [
             "hydrolyzed",
+            "salicylate",
             "salicylic acid",
             "liver"
           ],
-          "missing_keywords": [
-            "salicylate"
-          ],
-          "length": 293,
+          "missing_keywords": [],
+          "length": 393,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 100,
-          "hallucination_score": 70,
-          "rationale": "The generated text successfully captures all gold-standard keywords and concepts related to metabolism ('hydrolyzed', 'salicylate'/'salicylic acid', 'liver'). However, it introduces specific clinical details and metabolites not present in the brief gold-standard list (e.g., plasma kinetics, salicyluric acid, phenolic glucuronide, acyl glucuronide), resulting in a moderate hallucination score under strict adherence to the provided reference."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "excretion": {
-          "keyword_score": 75.0,
+          "keyword_score": 25.0,
           "matched_keywords": [
-            "excreted",
-            "half-life",
-            "urine"
+            "half-life"
           ],
           "missing_keywords": [
-            "renal"
+            "renal",
+            "excreted",
+            "urine"
           ],
-          "length": 259,
+          "length": 322,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 100,
-          "hallucination_score": 0,
-          "rationale": "The generated text successfully captures all the core concepts from the gold standard facts (half-life, renal excretion, urine, and excreted forms) without omitting any essential information, and it does not introduce any clinically ungrounded information outside the scope of the provided facts."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         }
       }
     },
     {
       "drug": "ibuprofen",
       "success": true,
-      "duration_sec": 13.74,
+      "duration_sec": 124.8,
       "schema_compliance": 100,
       "citation_score": 100.0,
-      "avg_keyword_score": 34.3,
-      "avg_correctness_score": 40.0,
-      "avg_hallucination_score": 5.7,
-      "overall_score": 83.6,
+      "citation_evidence_score": 100.0,
+      "field_coverage_score": 95.7,
+      "field_count": 23,
+      "populated_field_count": 22,
+      "retrieval_recall": {
+        "keyword_recall_proxy": 88.0,
+        "matched_terms": [
+          "cyclooxygenase",
+          "COX-1",
+          "COX-2",
+          "prostaglandin",
+          "pain",
+          "fever",
+          "arthritis",
+          "inflammation",
+          "dysmenorrhea",
+          "rapidly absorbed",
+          "bioavailability",
+          "protein binding",
+          "metabolized",
+          "CYP2C9",
+          "excreted",
+          "half-life",
+          "urine",
+          "hypersensitivity",
+          "asthma",
+          "urticaria",
+          "bleeding",
+          "renal impairment"
+        ],
+        "expected_term_count": 25
+      },
+      "avg_keyword_score": 52.4,
+      "avg_correctness_score": null,
+      "avg_hallucination_score": null,
+      "overall_score": 87.0,
       "fields": {
         "mechanism_of_action": {
-          "keyword_score": 100.0,
+          "keyword_score": 80.0,
           "matched_keywords": [
             "inhibits",
             "cyclooxygenase",
             "COX-1",
-            "COX-2",
+            "COX-2"
+          ],
+          "missing_keywords": [
             "prostaglandin"
           ],
-          "missing_keywords": [],
-          "length": 143,
+          "length": 136,
           "has_sources": true,
           "sources_count": 2,
-          "correctness_score": 100,
-          "hallucination_score": 0,
-          "rationale": "The generated text successfully captures all the gold standard facts (inhibits, cyclooxygenase, COX-1, COX-2, prostaglandin) without adding any unsupported clinical claims or extraneous information."
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "indications": {
-          "keyword_score": 80.0,
+          "keyword_score": 60.0,
           "matched_keywords": [
             "pain",
             "fever",
-            "arthritis",
-            "dysmenorrhea"
+            "arthritis"
           ],
           "missing_keywords": [
-            "inflammation"
+            "inflammation",
+            "dysmenorrhea"
           ],
-          "length": 199,
+          "length": 314,
           "has_sources": true,
-          "sources_count": 2,
-          "correctness_score": 100,
-          "hallucination_score": 0,
-          "rationale": "The generated text successfully captures all core gold-standard indications (pain, fever, arthritis/rheumatoid arthritis/osteoarthritis, inflammation contextually via arthritis/pain, and dysmenorrhea). It does not introduce any unsupported clinical claims or details outside the scope of the gold standard facts."
+          "sources_count": 3,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "contraindications": {
           "keyword_score": 60.0,
@@ -206,24 +284,25 @@
           "length": 250,
           "has_sources": true,
           "sources_count": 1,
-          "correctness_score": 80,
-          "hallucination_score": 40,
-          "rationale": "The generated text successfully captures the gold standard facts of hypersensitivity, asthma, and urticaria, but misses bleeding and renal impairment (yielding a correctness score of 80). It introduces unsupported clinical details not present in the gold standard, specifically aspirin/NSAID cross-reactivity and contraindication in CABG surgery (yielding a hallucination score of 40)."
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "absorption": {
-          "keyword_score": 0.0,
-          "matched_keywords": [],
+          "keyword_score": 33.3,
+          "matched_keywords": [
+            "rapidly absorbed"
+          ],
           "missing_keywords": [
-            "rapidly absorbed",
             "bioavailability",
             "Tmax"
           ],
-          "length": 0,
+          "length": 109,
           "has_sources": true,
-          "sources_count": 0,
-          "correctness_score": 0,
-          "hallucination_score": 0,
-          "rationale": "The generated text indicates that the data is unavailable or missing, therefore failing to capture any of the gold standard facts (rapidly absorbed, bioavailability, Tmax), resulting in a correctness score of 0. Since no information was provided, no hallucinations were added, resulting in a hallucination score of 0."
+          "sources_count": 1,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "distribution": {
           "keyword_score": 0.0,
@@ -231,72 +310,101 @@
           "missing_keywords": [
             "protein binding"
           ],
-          "length": 0,
+          "length": 164,
           "has_sources": true,
-          "sources_count": 0,
-          "correctness_score": 0,
-          "hallucination_score": 0,
-          "rationale": "The generated text states 'Data unavailable / missing', failing to capture the gold standard fact 'protein binding'. However, because no false clinical details were added, the hallucination score is 0."
+          "sources_count": 1,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "metabolism": {
-          "keyword_score": 0.0,
-          "matched_keywords": [],
+          "keyword_score": 33.3,
+          "matched_keywords": [
+            "metabolized"
+          ],
           "missing_keywords": [
-            "metabolized",
             "CYP2C9",
             "oxidation"
           ],
-          "length": 0,
+          "length": 99,
           "has_sources": true,
-          "sources_count": 0,
-          "correctness_score": 0,
-          "hallucination_score": 0,
-          "rationale": "The generated text indicates that the data is unavailable or missing, meaning it failed to capture any of the gold standard facts (metabolized, CYP2C9, oxidation). However, because it provided no information rather than making up false details, the hallucination score is 0."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "excretion": {
-          "keyword_score": 0.0,
-          "matched_keywords": [],
-          "missing_keywords": [
+          "keyword_score": 100.0,
+          "matched_keywords": [
             "excreted",
             "half-life",
             "urine"
           ],
-          "length": 0,
+          "missing_keywords": [],
+          "length": 186,
           "has_sources": true,
-          "sources_count": 0,
-          "correctness_score": 0,
-          "hallucination_score": 0,
-          "rationale": "The generated text states that the data is unavailable or missing, thus failing to capture any of the gold standard facts (excreted, half-life, urine). However, because it did not provide any false information, the hallucination score is 0."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         }
       }
     },
     {
       "drug": "metformin",
       "success": true,
-      "duration_sec": 16.0,
+      "duration_sec": 121.51,
       "schema_compliance": 100,
       "citation_score": 100.0,
-      "avg_keyword_score": 42.9,
-      "avg_correctness_score": 85.7,
-      "avg_hallucination_score": 40.0,
-      "overall_score": 86.4,
+      "citation_evidence_score": 100.0,
+      "field_coverage_score": 78.3,
+      "field_count": 23,
+      "populated_field_count": 18,
+      "retrieval_recall": {
+        "keyword_recall_proxy": 78.3,
+        "matched_terms": [
+          "hepatic glucose production",
+          "gluconeogenesis",
+          "insulin sensitivity",
+          "AMPK",
+          "type 2 diabetes",
+          "diabetes mellitus",
+          "glycemic control",
+          "bioavailability",
+          "Tmax",
+          "food",
+          "unchanged",
+          "renal",
+          "excreted",
+          "half-life",
+          "renal impairment",
+          "acidosis",
+          "lactic acidosis",
+          "hypersensitivity"
+        ],
+        "expected_term_count": 23
+      },
+      "avg_keyword_score": 60.7,
+      "avg_correctness_score": null,
+      "avg_hallucination_score": null,
+      "overall_score": 84.8,
       "fields": {
         "mechanism_of_action": {
           "keyword_score": 75.0,
           "matched_keywords": [
             "hepatic glucose production",
-            "insulin sensitivity",
-            "AMPK"
+            "gluconeogenesis",
+            "insulin sensitivity"
           ],
           "missing_keywords": [
-            "gluconeogenesis"
+            "AMPK"
           ],
-          "length": 356,
+          "length": 280,
           "has_sources": true,
           "sources_count": 2,
-          "correctness_score": 100,
-          "hallucination_score": 70,
-          "rationale": "The generated text successfully captures all gold standard concepts (hepatic glucose production, insulin sensitivity, AMPK, and implicitly gluconeogenesis through PEPCK/G6Pase repression), resulting in a correctness score of 100. However, it introduces numerous detailed molecular mechanisms and pathways (intestinal absorption, mitochondrial complex I, AMP/ATP ratios, AMPK-PKC\u03b9/\u03bb signaling, CREB-CRTC2, PEPCK/G6Pase) that are not explicitly listed in the minimal gold standard facts, leading to a hallucination score of 70 based on strict adherence to the provided reference."
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "indications": {
           "keyword_score": 100.0,
@@ -306,45 +414,46 @@
             "glycemic control"
           ],
           "missing_keywords": [],
-          "length": 217,
+          "length": 160,
           "has_sources": true,
-          "sources_count": 2,
-          "correctness_score": 100,
-          "hallucination_score": 30,
-          "rationale": "The generated text successfully captures all gold standard facts regarding type 2 diabetes and glycemic control (correctness score: 100). However, it adds extra clinical details not present in the gold standard, specifically mentioning pediatric patients 10 years of age and older and off-label indications in children (hallucination score: 30)."
+          "sources_count": 3,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "contraindications": {
-          "keyword_score": 0.0,
-          "matched_keywords": [],
-          "missing_keywords": [
+          "keyword_score": 75.0,
+          "matched_keywords": [
             "renal impairment",
             "acidosis",
-            "lactic acidosis",
             "hypersensitivity"
           ],
-          "length": 0,
+          "missing_keywords": [
+            "lactic acidosis"
+          ],
+          "length": 192,
           "has_sources": true,
-          "sources_count": 0,
-          "correctness_score": 0,
-          "hallucination_score": 0,
-          "rationale": "The generated text states that data is unavailable/missing, meaning it failed to capture any of the gold standard facts. However, because it added no external or unsupported information, the hallucination score is 0."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "absorption": {
-          "keyword_score": 50.0,
+          "keyword_score": 75.0,
           "matched_keywords": [
+            "bioavailability",
             "Tmax",
             "food"
           ],
           "missing_keywords": [
-            "slowly absorbed",
-            "bioavailability"
+            "slowly absorbed"
           ],
-          "length": 500,
+          "length": 332,
           "has_sources": true,
           "sources_count": 2,
-          "correctness_score": 100,
-          "hallucination_score": 100,
-          "rationale": "The gold standard facts are very broad ('slowly absorbed', 'bioavailability', 'Tmax', 'food'). The generated text successfully covers all of these concepts by discussing Tmax, food effects on absorption and bioavailability, and slow absorption via extended-release details. However, because the gold standard facts were extremely sparse and open-ended, the generated text includes a significant amount of specific pharmacokinetic and transporter detail (Cmax, AUC values, specific hours, OCTs, MATE transporters) that was not explicitly present in the gold standard reference, leading to a high hallucination score based on the strict evaluation rule that unsupported details count as hallucinations."
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "distribution": {
           "keyword_score": 0.0,
@@ -353,12 +462,12 @@
             "protein binding negligible",
             "not bound"
           ],
-          "length": 214,
+          "length": 184,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 100,
-          "hallucination_score": 50,
-          "rationale": "The generated text successfully captures the gold standard fact regarding protein binding (\"negligibly bound to plasma proteins\"). However, it also introduces additional pharmacological details about the volume of distribution and erythrocyte partitioning that are not present in the provided gold standard facts, resulting in a moderate hallucination score based strictly on the provided reference."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "metabolism": {
           "keyword_score": 50.0,
@@ -368,59 +477,88 @@
           "missing_keywords": [
             "not metabolized"
           ],
-          "length": 127,
+          "length": 235,
           "has_sources": true,
           "sources_count": 1,
-          "correctness_score": 100,
-          "hallucination_score": 0,
-          "rationale": "The generated text accurately captures the gold standard facts that metformin is not metabolized and is excreted unchanged. It does not introduce any unsupported clinical claims or details beyond the scope of the reference facts."
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "excretion": {
-          "keyword_score": 25.0,
+          "keyword_score": 50.0,
           "matched_keywords": [
-            "renal"
+            "renal",
+            "half-life"
           ],
           "missing_keywords": [
             "excreted",
-            "half-life",
             "tubular secretion"
           ],
-          "length": 196,
+          "length": 257,
           "has_sources": true,
-          "sources_count": 4,
-          "correctness_score": 100,
-          "hallucination_score": 30,
-          "rationale": "The generated text successfully captures all the gold standard facts related to metformin's excretion (renal excretion, half-life is implied via clearance, and tubular secretion mechanisms involving transporters). However, it introduces specific transporter details like 'OCTs and MATEs (such as OCT2 and MATE1)' and clearance values ('3.5 L/h') which are not explicitly listed in the gold standard facts, resulting in a minor hallucination/unsupported detail score."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         }
       }
     },
     {
       "drug": "atorvastatin",
       "success": true,
-      "duration_sec": 14.46,
+      "duration_sec": 115.88,
       "schema_compliance": 100,
       "citation_score": 100.0,
-      "avg_keyword_score": 36.0,
-      "avg_correctness_score": 92.9,
-      "avg_hallucination_score": 28.6,
-      "overall_score": 91.1,
+      "citation_evidence_score": 100.0,
+      "field_coverage_score": 87.0,
+      "field_count": 23,
+      "populated_field_count": 20,
+      "retrieval_recall": {
+        "keyword_recall_proxy": 76.0,
+        "matched_terms": [
+          "inhibits",
+          "HMG-CoA reductase",
+          "cholesterol biosynthesis",
+          "mevalonate",
+          "hypercholesterolemia",
+          "hyperlipidemia",
+          "cardiovascular disease",
+          "cholesterol",
+          "reduction",
+          "absorbed",
+          "bioavailability",
+          "Tmax",
+          "CYP3A4",
+          "metabolites",
+          "active",
+          "bile",
+          "half-life",
+          "pregnancy",
+          "hypersensitivity"
+        ],
+        "expected_term_count": 25
+      },
+      "avg_keyword_score": 46.7,
+      "avg_correctness_score": null,
+      "avg_hallucination_score": null,
+      "overall_score": 83.4,
       "fields": {
         "mechanism_of_action": {
-          "keyword_score": 50.0,
+          "keyword_score": 25.0,
           "matched_keywords": [
-            "HMG-CoA reductase",
             "mevalonate"
           ],
           "missing_keywords": [
             "inhibits",
+            "HMG-CoA reductase",
             "cholesterol biosynthesis"
           ],
-          "length": 257,
+          "length": 445,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 100,
-          "hallucination_score": 30,
-          "rationale": "The generated text successfully captures all gold standard facts: inhibition of HMG-CoA reductase, suppression of cholesterol biosynthesis, and the role of mevalonate. However, it introduces additional mechanisms regarding hepatic LDL receptor surface expression and LDL uptake/catabolism that are not explicitly listed in the gold standard facts, resulting in a slight hallucination score."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "indications": {
           "keyword_score": 60.0,
@@ -433,12 +571,12 @@
             "cardiovascular disease",
             "reduction"
           ],
-          "length": 634,
+          "length": 429,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 100,
-          "hallucination_score": 90,
-          "rationale": "The generated text successfully captures the core concepts of hypercholesterolemia, hyperlipidemia, cardiovascular disease, cholesterol reduction, and related cardiovascular indications present in the gold standard facts, yielding a correctness score of 100. However, it significantly expands upon the brief gold standard facts by adding detailed clinical sub-indications (such as specific patient populations, pediatric age limits, and various clinical endpoints like myocardial infarction, stroke, and angina), which are not explicitly listed in the gold standard, resulting in a hallucination score of 90."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "contraindications": {
           "keyword_score": 25.0,
@@ -450,12 +588,12 @@
             "pregnancy",
             "lactation"
           ],
-          "length": 102,
+          "length": 312,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 50,
-          "hallucination_score": 0,
-          "rationale": "The generated text correctly captures liver disease (specifically acute liver failure/decompensated cirrhosis) and hypersensitivity, which are part of the gold standard facts. However, it completely misses pregnancy and lactation. No unsupported or hallucinated details are present."
+          "sources_count": 3,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "absorption": {
           "keyword_score": 66.7,
@@ -466,12 +604,12 @@
           "missing_keywords": [
             "Tmax"
           ],
-          "length": 322,
+          "length": 477,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 100,
-          "hallucination_score": 0,
-          "rationale": "The generated text successfully captures all the gold standard concepts (absorption, bioavailability, Tmax) with accurate clinical details for atorvastatin. Since the gold standard provides key concepts rather than a strict text string, the generated elaboration of these concepts does not constitute a hallucination, as it accurately reflects standard pharmacological data for the drug."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "distribution": {
           "keyword_score": 0.0,
@@ -480,27 +618,27 @@
             "protein binding",
             "highly bound"
           ],
-          "length": 161,
+          "length": 241,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 100,
-          "hallucination_score": 50,
-          "rationale": "The generated text successfully captures the gold standard fact that atorvastatin is highly bound to proteins (reporting greater than or equal to 98% binding). However, it also includes additional pharmacokinetic details about the mean volume of distribution and blood-to-plasma ratio that were not present in the provided gold standard facts, resulting in a moderate hallucination score."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "metabolism": {
-          "keyword_score": 0.0,
-          "matched_keywords": [],
-          "missing_keywords": [
+          "keyword_score": 100.0,
+          "matched_keywords": [
             "CYP3A4",
             "metabolites",
             "active"
           ],
-          "length": 193,
+          "missing_keywords": [],
+          "length": 238,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 100,
-          "hallucination_score": 0,
-          "rationale": "The generated text successfully captures the key gold standard facts by mentioning CYP3A4 metabolism and its active metabolites. It does not introduce any unsupported claims or outside information."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "excretion": {
           "keyword_score": 50.0,
@@ -512,92 +650,124 @@
             "excreted",
             "feces"
           ],
-          "length": 245,
+          "length": 387,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 100,
-          "hallucination_score": 30,
-          "rationale": "The generated text successfully captures all gold standard concepts (excretion, bile, feces, half-life), resulting in a correctness score of 100. However, it introduces additional specific clinical details not explicitly listed in the minimal gold standard keywords, such as 'hepatic and/or extra-hepatic metabolism', specific numerical half-life values (14 hours, 20-30 hours), and urine recovery percentages, resulting in a hallucination score of 30."
+          "sources_count": 3,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         }
       }
     },
     {
       "drug": "caffeine",
       "success": true,
-      "duration_sec": 17.15,
+      "duration_sec": 125.49,
       "schema_compliance": 100,
       "citation_score": 100.0,
-      "avg_keyword_score": 11.4,
-      "avg_correctness_score": 17.1,
-      "avg_hallucination_score": 35.7,
-      "overall_score": 70.4,
+      "citation_evidence_score": 100.0,
+      "field_coverage_score": 69.6,
+      "field_count": 23,
+      "populated_field_count": 16,
+      "retrieval_recall": {
+        "keyword_recall_proxy": 76.9,
+        "matched_terms": [
+          "adenosine receptor",
+          "antagonist",
+          "block",
+          "A1",
+          "A2A",
+          "fatigue",
+          "drowsiness",
+          "headache",
+          "migraine",
+          "apnea",
+          "absorbed",
+          "CYP1A2",
+          "demethylation",
+          "metabolized",
+          "excreted",
+          "urine",
+          "half-life",
+          "hypersensitivity",
+          "cardiac arrhythmias",
+          "anxiety"
+        ],
+        "expected_term_count": 26
+      },
+      "avg_keyword_score": 49.3,
+      "avg_correctness_score": null,
+      "avg_hallucination_score": null,
+      "overall_score": 79.7,
       "fields": {
         "mechanism_of_action": {
           "keyword_score": 60.0,
           "matched_keywords": [
             "adenosine receptor",
             "antagonist",
-            "A2A"
+            "block"
           ],
           "missing_keywords": [
-            "block",
-            "A1"
+            "A1",
+            "A2A"
           ],
-          "length": 257,
+          "length": 411,
           "has_sources": true,
-          "sources_count": 1,
-          "correctness_score": 100,
-          "hallucination_score": 70,
-          "rationale": "The generated text successfully captures all gold standard facts (adenosine receptor, antagonist, block, A1, A2A) achieving a correctness score of 100. However, it introduces several additional mechanisms not mentioned in the gold standard (inhibition of phosphoric diester hydrolase and non-specific serine/threonine protein kinase, and functioning as a ryanodine receptor agonist), resulting in a hallucination score of 70."
+          "sources_count": 4,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "indications": {
-          "keyword_score": 20.0,
+          "keyword_score": 60.0,
           "matched_keywords": [
+            "headache",
+            "migraine",
             "apnea"
           ],
           "missing_keywords": [
             "fatigue",
-            "drowsiness",
-            "headache",
-            "migraine"
+            "drowsiness"
           ],
-          "length": 194,
+          "length": 236,
           "has_sources": true,
-          "sources_count": 2,
-          "correctness_score": 20,
-          "hallucination_score": 80,
-          "rationale": "The gold standard facts list fatigue, drowsiness, headache, migraine, and apnea. The generated text successfully captures 'apnea', but misses fatigue, drowsiness, headache, and migraine (yielding a low correctness score). Additionally, it introduces several unlisted indications such as preterm infant respiratory function management and topical uses for cellulite, hair loss, aging, and psoriasis, resulting in a high hallucination score."
+          "sources_count": 4,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "contraindications": {
-          "keyword_score": 0.0,
-          "matched_keywords": [],
+          "keyword_score": 25.0,
+          "matched_keywords": [
+            "hypersensitivity"
+          ],
           "missing_keywords": [
-            "hypersensitivity",
             "cardiac arrhythmias",
             "anxiety",
             "peptic ulcer"
           ],
-          "length": 0,
+          "length": 205,
           "has_sources": true,
-          "sources_count": 0,
-          "correctness_score": 0,
-          "hallucination_score": 0,
-          "rationale": "The generated text indicates that data is unavailable/missing, meaning it failed to capture any of the gold standard facts (hypersensitivity, cardiac arrhythmias, anxiety, peptic ulcer). However, because it did not provide any incorrect information or unverified claims, the hallucination score is 0."
+          "sources_count": 1,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "absorption": {
-          "keyword_score": 0.0,
-          "matched_keywords": [],
+          "keyword_score": 33.3,
+          "matched_keywords": [
+            "absorbed"
+          ],
           "missing_keywords": [
-            "absorbed",
             "bioavailability",
             "Tmax"
           ],
-          "length": 177,
+          "length": 74,
           "has_sources": true,
           "sources_count": 1,
-          "correctness_score": 0,
-          "hallucination_score": 100,
-          "rationale": "The gold standard facts only list the broad concepts of absorption, bioavailability, and Tmax. The generated text focuses on percutaneous absorption, skin penetration enhancers, and coffee extracts, none of which are mentioned in the gold standard. Therefore, it fails to capture the required facts (correctness 0) and introduces entirely unsupported clinical details (hallucination 100)."
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "distribution": {
           "keyword_score": 0.0,
@@ -607,42 +777,43 @@
             "crosses",
             "placenta"
           ],
-          "length": 0,
+          "length": 150,
           "has_sources": true,
-          "sources_count": 0,
-          "correctness_score": 0,
-          "hallucination_score": 0,
-          "rationale": "The generated text states that data is unavailable or missing, thus failing to capture any of the gold standard facts regarding blood-brain barrier and placental crossing (correctness = 0). It also introduces no unsupported or false clinical claims (hallucination = 0)."
+          "sources_count": 1,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "metabolism": {
-          "keyword_score": 0.0,
-          "matched_keywords": [],
-          "missing_keywords": [
+          "keyword_score": 66.7,
+          "matched_keywords": [
             "CYP1A2",
-            "demethylation",
             "metabolized"
           ],
-          "length": 0,
+          "missing_keywords": [
+            "demethylation"
+          ],
+          "length": 323,
           "has_sources": true,
-          "sources_count": 0,
-          "correctness_score": 0,
-          "hallucination_score": 0,
-          "rationale": "The generated text states that data is unavailable or missing, failing to capture any of the gold standard facts (CYP1A2, demethylation, metabolized). Because no claims were made, there are no hallucinations."
+          "sources_count": 2,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         },
         "excretion": {
-          "keyword_score": 0.0,
-          "matched_keywords": [],
-          "missing_keywords": [
+          "keyword_score": 100.0,
+          "matched_keywords": [
             "excreted",
             "urine",
             "half-life"
           ],
-          "length": 0,
+          "missing_keywords": [],
+          "length": 344,
           "has_sources": true,
-          "sources_count": 0,
-          "correctness_score": 0,
-          "hallucination_score": 0,
-          "rationale": "The generated text indicates that data is unavailable or missing, thus failing to capture any of the gold standard facts (excreted, urine, half-life). However, because it makes no false claims, the hallucination score is 0."
+          "sources_count": 3,
+          "correctness_score": null,
+          "hallucination_score": null,
+          "rationale": "LLM evaluation disabled (run with --llm-eval to enable)"
         }
       }
     }

@@ -122,6 +122,43 @@ def _resolve_field_dict(field: dict | str | None, source_map: dict) -> dict:
     return field
 
 
+def _resolve_citations_recursive(node: Any, source_map: dict[str, dict]) -> Any:
+    """Recursively walk dictionary/list trees and convert source_ids and string sources into Citation models."""
+    if isinstance(node, dict):
+        # 1. Clean inline [SOURCE_N] from content if present
+        if isinstance(node.get("content"), str):
+            node["content"] = re.sub(r"\s*\[SOURCE_\d+\]", "", node["content"]).strip()
+
+        # 2. Resolve source_ids → sources
+        raw_ids = node.pop("source_ids", None)
+        if raw_ids:
+            citations = resolve_citations(raw_ids, source_map)
+            node["sources"] = [c.model_dump() for c in citations]
+        elif "sources" in node and isinstance(node["sources"], list):
+            new_sources = []
+            for s in node["sources"]:
+                if isinstance(s, str):
+                    if s in source_map or s.startswith("SOURCE_"):
+                        c = resolve_citations([s], source_map)
+                        if c:
+                            new_sources.extend([item.model_dump() for item in c])
+                        else:
+                            new_sources.append({"source": s})
+                    else:
+                        new_sources.append({"source": s})
+                elif isinstance(s, dict):
+                    new_sources.append(s)
+            node["sources"] = new_sources
+
+        # Recurse for all sub-keys
+        for k, v in list(node.items()):
+            node[k] = _resolve_citations_recursive(v, source_map)
+        return node
+    elif isinstance(node, list):
+        return [_resolve_citations_recursive(item, source_map) for item in node]
+    return node
+
+
 def resolve_field_citations(
     llm_dict: dict,
     source_map: dict[str, dict],
@@ -129,24 +166,7 @@ def resolve_field_citations(
 ) -> dict:
     """
     Walk through an LLM response dict, resolve source_ids → sources for every
-    FieldValue-like sub-dict, and remove the internal source_ids key.
-
-    Handles the full nested schema:
-      - top-level FieldValue fields (therapeutic_classes)
-      - pharmacodynamics sub-fields
-      - adme sub-fields
-      - toxicology sub-fields
-      - therapeutic_profile sub-fields
-      - history sub-fields
-      - drug_name
-
-    Args:
-        llm_dict:   Raw dict from the LLM (may contain source_ids).
-        source_map: Built by context_builder.build_context().
-        field_keys: Ignored — kept for backward compatibility only.
-
-    Returns:
-        Modified dict safe to pass to DrugInfo(**…) for Pydantic validation.
+    sub-dict across the 6-section schema, and remove internal source_ids keys.
     """
     result = dict(llm_dict)
 
@@ -157,48 +177,40 @@ def resolve_field_citations(
 
     # 2. Pharmacodynamics sub-fields
     pd = result.get("pharmacodynamics")
-    if not isinstance(pd, dict):
-        pd = {}
-    for sub_key in [
-        "mechanism_of_action", "physiologic_effect",
-        "binding_affinity", "selectivity", "potency", "efficacy",
-    ]:
-        pd[sub_key] = _resolve_field_dict(pd.get(sub_key), source_map)
-    result["pharmacodynamics"] = pd
+    if isinstance(pd, dict):
+        for sub_key in [
+            "mechanism_of_action", "physiologic_effect",
+            "binding_affinity", "selectivity", "potency", "efficacy",
+        ]:
+            if sub_key in pd:
+                pd[sub_key] = _resolve_field_dict(pd.get(sub_key), source_map)
+        result["pharmacodynamics"] = pd
 
     # 3. ADME sub-fields
     adme = result.get("adme")
-    if not isinstance(adme, dict):
-        adme = {}
-    for sub_key in ["absorption", "distribution", "metabolism", "excretion"]:
-        adme[sub_key] = _resolve_field_dict(adme.get(sub_key), source_map)
-    result["adme"] = adme
+    if isinstance(adme, dict):
+        for sub_key in ["absorption", "distribution", "metabolism", "excretion"]:
+            if sub_key in adme:
+                adme[sub_key] = _resolve_field_dict(adme.get(sub_key), source_map)
+        result["adme"] = adme
 
     # 4. Toxicology sub-fields
     tox = result.get("toxicology")
-    if not isinstance(tox, dict):
-        tox = {}
-    for sub_key in ["acute_toxicity", "cytotoxicity", "genetic_toxicology", "hazard_classifications"]:
-        tox[sub_key] = _resolve_field_dict(tox.get(sub_key), source_map)
-    result["toxicology"] = tox
+    if isinstance(tox, dict):
+        for sub_key in ["acute_toxicity", "cytotoxicity", "genetic_toxicology", "hazard_classifications"]:
+            if sub_key in tox:
+                tox[sub_key] = _resolve_field_dict(tox.get(sub_key), source_map)
+        result["toxicology"] = tox
 
-    # 5. Therapeutic profile sub-fields
-    tp = result.get("therapeutic_profile")
-    if not isinstance(tp, dict):
-        tp = {}
-    for sub_key in ["indications", "contraindications", "adverse_effects", "drug_interactions"]:
-        tp[sub_key] = _resolve_field_dict(tp.get(sub_key), source_map)
-    result["therapeutic_profile"] = tp
-
-    # 6. History sub-fields
+    # 5. History sub-fields
     hist = result.get("history")
-    if not isinstance(hist, dict):
-        hist = {}
-    for sub_key in ["background", "discovery", "development", "clinical_trials"]:
-        hist[sub_key] = _resolve_field_dict(hist.get(sub_key), source_map)
-    result["history"] = hist
+    if isinstance(hist, dict):
+        for sub_key in ["background", "discovery", "development", "clinical_trials"]:
+            if sub_key in hist:
+                hist[sub_key] = _resolve_field_dict(hist.get(sub_key), source_map)
+        result["history"] = hist
 
-    # 7. Drug Name
+    # 6. Drug Name
     dn = result.get("drug_name")
     if isinstance(dn, str):
         result["drug_name"] = {
@@ -220,12 +232,8 @@ def resolve_field_citations(
             dn["lab_codes"] = []
         if not dn.get("generic"):
             dn["generic"] = "Unknown"
-    else:
-        result["drug_name"] = {
-            "generic": "Unknown",
-            "brand_names": [],
-            "lab_codes": [],
-            "sources": [],
-        }
+
+    # 7. Complete recursive resolution for the entire 6-section schema
+    result = _resolve_citations_recursive(result, source_map)
 
     return result

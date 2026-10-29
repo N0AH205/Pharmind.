@@ -12,7 +12,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-from rag.config import OFFLINE_MODE
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ def get_reranker():
             cached_model_ready = all((model_dir / name).exists() for name in (
                 "config.json", "tokenizer.json", "flashrank-TinyBERT-L-2-v2.onnx"
             ))
-            if OFFLINE_MODE and not cached_model_ready:
+            if not cached_model_ready:
                 logger.warning("Local reranker is not cached; offline mode will use vector ranking.")
                 _reranker_instance = False
             else:

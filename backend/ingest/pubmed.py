@@ -19,7 +19,7 @@ NCBI_API_KEY = os.getenv("NCBI_API_KEY", "")
 BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 
 
-async def search_pubmed(query: str, max_results: int = 20) -> list[str]:
+async def search_pubmed(query: str, max_results: int = 20, raise_errors: bool = False) -> list[str]:
     require_network_allowed("PubMed search")
     """
     Search PubMed and return a list of PMIDs matching the query.
@@ -44,13 +44,17 @@ async def search_pubmed(query: str, max_results: int = 20) -> list[str]:
         try:
             resp = await client.get(f"{BASE_URL}/esearch.fcgi", params=params)
             if resp.status_code != 200:
+                if raise_errors:
+                    resp.raise_for_status()
                 return []
             return resp.json()["esearchresult"]["idlist"]
         except Exception:
+            if raise_errors:
+                raise
             return []
 
 
-async def fetch_abstracts(pmids: list[str]) -> list[dict]:
+async def fetch_abstracts(pmids: list[str], raise_errors: bool = False) -> list[dict]:
     require_network_allowed("PubMed abstract download")
     """
     Fetch abstracts for a list of PMIDs via EFetch.
@@ -78,13 +82,19 @@ async def fetch_abstracts(pmids: list[str]) -> list[dict]:
         try:
             resp = await client.get(f"{BASE_URL}/efetch.fcgi", params=params)
             if resp.status_code != 200:
+                if raise_errors:
+                    resp.raise_for_status()
                 return []
         except Exception:
+            if raise_errors:
+                raise
             return []
 
     try:
         root = ET.fromstring(resp.text)
     except ET.ParseError:
+        if raise_errors:
+            raise
         return []
 
     results: list[dict] = []
