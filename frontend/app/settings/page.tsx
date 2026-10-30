@@ -3,6 +3,8 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useBrowserReady } from "@/lib/useBrowserReady";
+import { useOllamaModels } from "@/lib/useOllamaModels";
+import { ollamaModelWarning, selectedOllamaModel } from "@/lib/ollamaModels";
 import { clearConnection, DEFAULT_CONNECTION, getConnection, PROVIDERS, saveConnection, type ModelConnection, type Provider } from "@/lib/connection";
 import styles from "./settings.module.css";
 
@@ -20,6 +22,8 @@ function ConnectionSettings() {
   const [readiness, setReadiness] = useState("");
   const [checking, setChecking] = useState(false);
   const [showKey, setShowKey] = useState(false);
+  const local = useOllamaModels(connection.provider === "ollama" ? connection.base_url : null);
+  const localWarning = local.loading ? "" : local.error || ollamaModelWarning(local.models, connection.model);
 
 
   async function checkReadiness() {
@@ -42,6 +46,7 @@ function ConnectionSettings() {
     if (!connection.model.trim()) { setError("Enter the exact model ID from your provider or Ollama installation."); return false; }
     if (connection.provider !== "ollama" && !connection.api_key.trim()) { setError("Enter your API key for this provider."); return false; }
     if (!/^[a-zA-Z0-9._:/-]+$/.test(connection.model)) { setError("Use a model ID without spaces or special characters."); return false; }
+    if (connection.provider === "ollama" && !local.loading && !local.error && localWarning) { setError(localWarning); return false; }
     try {
       const url = new URL(connection.base_url);
       if (!["http:", "https:"].includes(url.protocol) || !["localhost", "127.0.0.1", "[::1]", "host.docker.internal"].includes(url.hostname) || url.username || url.password || url.search || url.hash || (url.pathname !== "/" && url.pathname !== "")) throw new Error();
@@ -88,9 +93,21 @@ function ConnectionSettings() {
             <legend>Model provider</legend>
             <div className={styles.providers}>{Object.entries(PROVIDERS).map(([id, provider]) => <button type="button" key={id} aria-pressed={connection.provider === id} onClick={() => update({ provider: id as Provider, model: provider.model, api_key: "" })}><span>{provider.name}</span><small>{id === "ollama" ? "On your device" : "Your API key"}</small></button>)}</div>
             <label htmlFor="model">Model ID</label><input id="model" value={connection.model} onChange={e => update({ model: e.target.value.trim() })} placeholder={connection.provider === "ollama" ? "qwen2.5:3b" : "Enter a model ID from your provider"} required autoComplete="off" />
-            <p className={styles.hint}>{connection.provider === "ollama" ? "Use the exact model name shown by ollama list." : "Use a model that your provider account can access."}</p>
+            <p className={styles.hint}>{connection.provider === "ollama" ? "Choose an installed answer model below, or enter its exact model ID." : "Use a model that your provider account can access."}</p>
             {connection.provider === "ollama" ? <><label htmlFor="endpoint">Local Ollama address</label><input id="endpoint" type="url" value={connection.base_url} onChange={e => update({ base_url: e.target.value })} required /><p className={styles.hint}>Docker installations use the configured host gateway automatically.</p></> : <><label htmlFor="api-key">Your API key</label><div className={styles.keyField}><input id="api-key" type={showKey ? "text" : "password"} value={connection.api_key} onChange={e => update({ api_key: e.target.value.trim() })} placeholder="Paste your provider key" autoComplete="off" spellCheck={false} required /><button type="button" onClick={() => setShowKey(!showKey)} aria-label={showKey ? "Hide API key" : "Show API key"}>{showKey ? "Hide" : "Show"}</button></div><p className={styles.hint}>Stored in this browser tab’s session, never in your chat history. Clear it below when you are done.</p></>}
           </fieldset>
+          {connection.provider === "ollama" && <section className={styles.localModels} aria-labelledby="installed-models-title">
+            <div className={styles.modelListHeader}><h2 id="installed-models-title">Models on your computer</h2><button type="button" onClick={local.refresh} disabled={local.loading || testing}>{local.loading ? "Checking…" : "Refresh models"}</button></div>
+            {local.loading ? <p role="status">Checking your Ollama installation…</p> : <>
+              {localWarning && <p role="status" className={styles.modelWarning}>{localWarning}</p>}
+              {!!local.models.length && <><label htmlFor="installed-model">Installed model</label><select id="installed-model" value={selectedOllamaModel(local.models, connection.model)?.name || ""} disabled={testing} onChange={event => { if (event.target.value) update({ model: event.target.value }); }}>
+                <option value="" disabled>Choose an installed answer model</option>
+                {local.models.map(model => <option key={model.name} value={model.name} disabled={model.can_chat === false}>{model.name}{model.can_chat === false ? " — cannot generate answers" : model.can_chat === null ? " — capabilities unverified" : ""}</option>)}
+              </select><p className={styles.hint}>Selecting a model updates Model ID. Save connection to use it. Model availability does not guarantee answer quality or hardware fit.</p></>}
+              {!local.error && !localWarning && <p role="status">{connection.model} is installed and available to select.</p>}
+            </>}
+            <p>Docker runs Pharmind. Install and start Ollama separately on your computer. To download the default model, run <code>ollama pull qwen2.5:3b</code>, then refresh this list.</p>
+          </section>}
           <fieldset disabled={!ready || testing} className={styles.sources}>
             <legend>Online sources</legend>
             <label className={styles.checkbox}><input type="checkbox" checked={connection.online_sources} onChange={e => update({ online_sources: e.target.checked })} /><span>Allow online literature sources<small>Send search terms to public research databases, including PubMed and PubChem. Off by default.</small></span></label>
@@ -106,7 +123,7 @@ function ConnectionSettings() {
           <button type="button" className="btn btn-ghost" onClick={checkReadiness} disabled={checking}>{checking ? "Checking local models…" : "Check local readiness"}</button>
           {readiness && <p role="status">{readiness}</p>}
           <p>For fully local research, choose Ollama and leave online sources off. Install your model and prepare the local embedding cache while you have an internet connection.</p>
-          <div className={styles.guideStep}><span>1</span><div><strong>Install a model</strong><code>ollama pull qwen2.5:3b</code></div></div>
+          <div className={styles.guideStep}><span>1</span><div><strong>Install Ollama and an answer model</strong><p>Docker does not install these. Start Ollama on your computer, then choose an installed model or download one:</p><code>ollama pull qwen2.5:3b</code></div></div>
           <div className={styles.guideStep}><span>2</span><div><strong>Prepare the document index</strong><p>Run <code>python scripts/prepare_local_models.py</code> from the backend directory, or use the Docker command in the README.</p></div></div>
           <div className={styles.guideStep}><span>3</span><div><strong>Bring your reading</strong><p>Open the workspace and add a PDF to your local library.</p></div></div>
         </aside>

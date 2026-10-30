@@ -16,6 +16,7 @@ function load(name) {
 const { normalizeChatCitations } = load("citations");
 const { parseNotebookBackup, validateNotebooks, mergeNotebooks } = load("notebooks");
 const { readEvents } = load("events");
+const { selectedOllamaModel, ollamaModelWarning } = load("ollamaModels");
 const paper = { document_id: "paper-1", filename: "trial.pdf", pages: 2, chunks: 3 };
 const notebook = { id: "notebook-1", title: "Trial findings", createdAt: 1, updatedAt: 2, messages: [], activeDocument: paper, mode: "paper_learning" };
 
@@ -63,4 +64,18 @@ test("SSE handles byte boundaries, Unicode, CRLF and an unterminated final frame
 test("malformed stream events fail visibly instead of being silently swallowed", async () => {
   const stream = new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode("data: invalid\n\n")); controller.close(); } });
   await assert.rejects(readEvents(stream, () => undefined), SyntaxError);
+});
+
+test("installed model matching accepts latest aliases and flags the missing default", () => {
+  const models = [{ name: "qwen2.5:7b", can_chat: true }, { name: "custom:latest", can_chat: null }];
+  assert.equal(selectedOllamaModel(models, "custom").name, "custom:latest");
+  assert.equal(ollamaModelWarning(models, "qwen2.5:7b"), "");
+  assert.match(ollamaModelWarning(models, "qwen2.5:3b"), /not installed/);
+});
+
+test("model notices distinguish no models from embedding-only installations", () => {
+  assert.match(ollamaModelWarning([], "qwen2.5:3b"), /no models/);
+  const embedding = { name: "nomic-embed-text:latest", can_chat: false };
+  assert.match(ollamaModelWarning([embedding], embedding.name), /cannot generate answers/);
+  assert.match(ollamaModelWarning([embedding, { name: "qwen2.5:7b", can_chat: true }], embedding.name), /cannot generate answers/);
 });

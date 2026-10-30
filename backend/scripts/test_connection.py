@@ -12,7 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 
 from rag.config import ModelConnection, connection_context, get_connection, require_network_allowed
-from rag.connection_api import model_connection_context, connection_validation_error, router, test_connection as verify_connection
+from rag.connection_api import model_connection_context, connection_validation_error, router, test_connection as verify_connection, ollama_models, ollama_host
 from rag.llm import generate_chat_response
 
 
@@ -80,10 +80,63 @@ class ConnectionTests(unittest.IsolatedAsyncioTestCase):
         response = httpx.Response(200, json={"models": [{"name": "installed:latest"}]}, request=httpx.Request("GET", "http://localhost:11434/api/tags"))
         with patch("rag.connection_api.httpx.AsyncClient") as client:
             client.return_value.__aenter__.return_value.get = AsyncMock(return_value=response)
+            client.return_value.__aenter__.return_value.post = AsyncMock(return_value=httpx.Response(200, json={"capabilities": ["completion"]}, request=httpx.Request("POST", "http://localhost:11434/api/show")))
             missing = await verify_connection(ModelConnection(model="missing"))
             present = await verify_connection(ModelConnection(model="installed"))
         self.assertEqual(missing.status_code, 400)
         self.assertTrue(present["success"])
+
+    async def test_discovery_distinguishes_answer_and_embedding_models_without_inference(self):
+        tags = httpx.Response(200, json={"models": [{"name": "answer:7b"}, {"name": "embed:latest"}]}, request=httpx.Request("GET", "http://localhost:11434/api/tags"))
+        async def show(url, json):
+            return httpx.Response(200, json={"capabilities": ["embedding"] if json["model"] == "embed:latest" else ["completion", "tools"]}, request=httpx.Request("POST", url))
+        with patch("rag.connection_api.httpx.AsyncClient") as factory:
+            client = factory.return_value.__aenter__.return_value
+            client.get = AsyncMock(return_value=tags)
+            client.post = AsyncMock(side_effect=show)
+            result = await ollama_models(ModelConnection(api_key="dummy-secret"))
+        self.assertEqual(result["models"], [{"name": "answer:7b", "can_chat": True}, {"name": "embed:latest", "can_chat": False}])
+        self.assertNotIn("dummy-secret", json.dumps(result))
+        self.assertTrue(all(call.args[0].endswith("/api/show") for call in client.post.await_args_list))
+
+    async def test_embedding_model_is_rejected_for_answers(self):
+        with patch("rag.connection_api.discover_ollama_models", new_callable=AsyncMock, return_value=[{"name": "embed:latest", "can_chat": False}]):
+            result = await verify_connection(ModelConnection(model="embed"))
+        self.assertEqual(result.status_code, 400)
+        self.assertIn("cannot generate answers", result.body.decode())
+
+    async def test_discovery_failure_is_actionable_and_redacted(self):
+        with patch("rag.connection_api.discover_ollama_models", new_callable=AsyncMock, side_effect=httpx.ConnectError("dummy-secret")):
+            result = await ollama_models(ModelConnection())
+        self.assertEqual(result.status_code, 502)
+        self.assertIn("ollama serve", result.body.decode())
+        self.assertNotIn("dummy-secret", result.body.decode())
+
+    async def test_older_ollama_without_capabilities_remains_unverified(self):
+        tags = httpx.Response(200, json={"models": [{"name": "old:latest"}]}, request=httpx.Request("GET", "http://localhost:11434/api/tags"))
+        with patch("rag.connection_api.httpx.AsyncClient") as factory:
+            client = factory.return_value.__aenter__.return_value
+            client.get = AsyncMock(return_value=tags)
+            client.post = AsyncMock(return_value=httpx.Response(200, json={}, request=httpx.Request("POST", "http://localhost:11434/api/show")))
+            result = await ollama_models(ModelConnection())
+        self.assertIsNone(result["models"][0]["can_chat"])
+
+    async def test_model_discovery_validates_endpoint_without_echoing_keys(self):
+        app = FastAPI()
+        app.include_router(router)
+        app.add_exception_handler(RequestValidationError, connection_validation_error)
+        with patch("rag.connection_api.discover_ollama_models", new_callable=AsyncMock) as discover:
+            async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
+                response = await client.post("/connection/ollama-models", json={"base_url": "https://outside.example", "api_key": "dummy-secret"})
+        self.assertEqual(response.status_code, 422)
+        self.assertNotIn("dummy-secret", response.text)
+        discover.assert_not_awaited()
+
+    def test_docker_loopback_aliases_use_the_same_host_gateway(self):
+        with patch.dict("os.environ", {"OLLAMA_BASE_URL": "http://host.docker.internal:11434"}):
+            for address in ["http://localhost:11434", "http://127.0.0.1:11434", "http://[::1]:11434"]:
+                self.assertEqual(ollama_host(ModelConnection(base_url=address)), "http://host.docker.internal:11434")
+            self.assertEqual(ollama_host(ModelConnection(base_url="http://localhost:11435")), "http://localhost:11435")
 
     async def test_cloud_connection_test_never_echoes_key(self):
         key = "dummy-secret"

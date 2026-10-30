@@ -11,6 +11,7 @@ import ChatInterface from "@/components/ChatInterface";
 import PDFDropzone from "@/components/PDFDropzone";
 import DrugComparisonModal from "@/components/DrugComparisonModal";
 import MoleculeDrawerModal from "@/components/MoleculeDrawerModal";
+import OllamaConnectionNotice from "@/components/OllamaConnectionNotice";
 import styles from "./chat.module.css";
 
 interface Props {
@@ -631,6 +632,7 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
             )}
           </div>
         </header>
+        <OllamaConnectionNotice connection={connection} />
         {storageNotice && <div className={styles.workspaceNotice} role="status">{storageNotice}<button type="button" onClick={() => setStorageNotice("")} aria-label="Dismiss notice">×</button></div>}
         {loading && <div className={styles.workspaceNotice} role="status"><span>{streamStatus || "Working…"}</span><button type="button" onClick={() => requestRef.current?.abort()}>Stop request</button></div>}
         {!hasStarted ? (

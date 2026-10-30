@@ -1,5 +1,6 @@
 """Validate a user's selected connection without sending a research prompt."""
 import os
+import asyncio
 
 import httpx
 from fastapi import APIRouter, Request
@@ -26,7 +27,7 @@ async def model_connection_context(request: Request, call_next):
 
 async def connection_validation_error(request: Request, exc):
     # FastAPI normally echoes invalid input, which may include an entered key.
-    if request.url.path == "/connection/test":
+    if request.url.path.startswith("/connection/"):
         return JSONResponse(status_code=422, content={"success": False, "error": "Check the provider, model ID, and local endpoint in your connection settings."})
     from fastapi.exception_handlers import request_validation_exception_handler
     return await request_validation_exception_handler(request, exc)
@@ -34,19 +35,72 @@ async def connection_validation_error(request: Request, exc):
 
 def ollama_host(connection: ModelConnection) -> str:
     # Docker's loopback is the container, so use the configured host gateway.
-    if connection.base_url == "http://localhost:11434":
+    if connection.base_url in {"http://localhost:11434", "http://127.0.0.1:11434", "http://[::1]:11434"}:
         return os.getenv("OLLAMA_BASE_URL", connection.base_url)
     return connection.base_url
 
 
+async def discover_ollama_models(connection: ModelConnection) -> list[dict]:
+    host = ollama_host(connection)
+    async with httpx.AsyncClient(timeout=5) as client:
+        response = await client.get(f"{host}/api/tags")
+        response.raise_for_status()
+        entries = response.json()["models"]
+        if not isinstance(entries, list):
+            raise ValueError("Invalid Ollama model list")
+        semaphore = asyncio.Semaphore(4)
+
+        async def describe(entry):
+            name = entry.get("name")
+            if not isinstance(name, str) or not name:
+                raise ValueError("Invalid Ollama model name")
+            can_chat = None
+            try:
+                async with semaphore:
+                    details = await client.post(f"{host}/api/show", json={"model": name})
+                    details.raise_for_status()
+                capabilities = details.json().get("capabilities")
+                if isinstance(capabilities, list):
+                    can_chat = "completion" in capabilities
+            except (httpx.HTTPError, ValueError, TypeError, AttributeError):
+                # Older Ollama releases may not expose model capabilities.
+                pass
+            return {"name": name, "can_chat": can_chat}
+
+        return sorted(await asyncio.gather(*(describe(entry) for entry in entries)), key=lambda model: model["name"])
+
+
+def find_ollama_model(models: list[dict], selected: str) -> dict | None:
+    return next((model for model in models if model["name"] in {selected, f"{selected}:latest"}), None)
+
+
+@router.post("/connection/ollama-models")
+async def ollama_models(connection: ModelConnection):
+    if connection.provider != "ollama":
+        return JSONResponse(status_code=400, content={"success": False, "error": "Choose Ollama to inspect local models."})
+    try:
+        return {"success": True, "models": await discover_ollama_models(connection)}
+    except (httpx.HTTPError, ValueError, KeyError, TypeError, AttributeError):
+        return JSONResponse(status_code=502, content={"success": False, "error": "Ollama is unavailable. Open Ollama or run ollama serve on your computer, then refresh. Docker does not install Ollama or an answer model."})
+
+
 @router.post("/connection/test")
 async def test_connection(connection: ModelConnection):
+    if connection.provider == "ollama":
+        discovered = await ollama_models(connection)
+        if isinstance(discovered, JSONResponse):
+            return discovered
+        models = discovered["models"]
+        selected = find_ollama_model(models, connection.model)
+        if selected is None:
+            return JSONResponse(status_code=400, content={"success": False, "error": f"{connection.model} is not installed. Choose an installed answer model in Model & connection, or download a model with ollama pull.", "models": models})
+        if selected["can_chat"] is False:
+            return JSONResponse(status_code=400, content={"success": False, "error": f"{connection.model} cannot generate answers. Choose an installed text-generation model.", "models": models})
+        return {"success": True, "message": "Connection verified. The selected model is installed; no research prompt was sent. This does not verify answer quality."}
     if connection.provider != "ollama" and not connection.api_key.strip():
         return JSONResponse(status_code=400, content={"success": False, "error": "Enter your provider API key."})
     headers = {}
-    if connection.provider == "ollama":
-        url = f"{ollama_host(connection)}/api/tags"
-    elif connection.provider == "openai":
+    if connection.provider == "openai":
         url = f"https://api.openai.com/v1/models/{connection.model}"
         headers = {"Authorization": f"Bearer {connection.api_key}"}
     elif connection.provider == "anthropic":
@@ -59,10 +113,6 @@ async def test_connection(connection: ModelConnection):
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.get(url, headers=headers)
             response.raise_for_status()
-        if connection.provider == "ollama":
-            models = {item.get("name") for item in response.json().get("models", [])}
-            if connection.model not in models and f"{connection.model}:latest" not in models:
-                return JSONResponse(status_code=400, content={"success": False, "error": "Ollama is reachable, but this model is not installed. Download it with ollama pull, then test again."})
         return {"success": True, "message": "Connection verified. The selected model is available; no research prompt was sent."}
     except httpx.HTTPStatusError as exc:
         status = exc.response.status_code

@@ -42,6 +42,8 @@ For research and education only. Generated answers need source verification and 
 
 ## Start with Docker
 
+Docker builds the Pharmind frontend and backend. It does **not** install Ollama on your computer or download an answer-generating model. Ollama runs separately on the host. The embedding/reranking models prepared below support document retrieval and do not write answers.
+
 1. Install and start Docker Desktop.
 2. Copy `backend/.env.example` to `backend/.env` if it does not exist. The example defaults to Ollama and disables online sources.
 3. Run `docker compose up -d --build`.
@@ -57,7 +59,7 @@ For research and education only. Generated answers need source verification and 
    ollama pull qwen2.5:3b
    ```
 
-6. Open [connection settings](http://localhost:3001/settings). Choose your engine, enter the exact installed or provider model ID, test the connection, and save it for this browser session.
+6. Open [connection settings](http://localhost:3001/settings). For Ollama, the app detects installed models and flags a missing selection or unavailable service. Choose an installed answer model from the list, test the connection, and save it for this browser session. Refresh the list after downloading another model. Embedding-only models cannot be selected for answers. For BYOK, enter your provider's model ID and key.
 7. Open the workspace and add a PDF through **Document library** or **Add a paper**.
 
 On Windows, `start-pharmind-local.bat` builds the containers, prepares the document model cache, and opens the workspace. It does not ask for a cloud key or automatically ingest online literature. Use `stop-pharmind-local.bat` to stop the app.
@@ -128,7 +130,7 @@ Open [Pharmind Local](http://localhost:3001) to start in the workspace. Configur
 
 Entered keys are not written to backend files, included in chat history, or returned by the connection test. Session storage is accessible to scripts on the app's origin; it is not an encrypted credential vault. Environment variables remain available for command-line workflows. Browser requests carry their own selected settings, independently of those variables.
 
-Connection testing checks Ollama's installed model list or the selected provider's model endpoint. It does not send a research prompt or verify answer quality.
+Connection testing checks Ollama's installed model list and reported generation capabilities, or the selected provider's model endpoint. It does not send a research prompt, verify answer quality, or measure whether a model fits your available memory. Older Ollama versions may not report capabilities; these models are marked as unverified. The workspace shows a setup notice when its saved Ollama model is missing or the service cannot be reached. Models are never switched or downloaded automatically.
 
 The structure editor is bundled and served locally, including its templates. It works with online sources off. External structure images and database lookups require online sources to be enabled. Clicking an external citation is a deliberate visit to that source.
 

@@ -17,6 +17,14 @@
 .form label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 7px; }
 .form input:not([type=checkbox]) { display: block; width: 100%; background: var(--bg-surface); color: var(--ink); padding: 11px 13px; border: 1px solid var(--steel); font-size: 13px; min-width: 0; border-radius: 0; }
 .hint { font-size: 10px; color: var(--slate); margin: 7px 0 22px; }
+.localModels { margin: 4px 0 24px; padding: 18px; border: 1px solid var(--steel); font-size: 12px; color: var(--slate); }
+.localModels p { line-height: 1.7; margin: 12px 0 0; }
+.localModels code { overflow-wrap: anywhere; }
+.localModels select { width: 100%; padding: 11px 13px; font: inherit; background: var(--bg-surface); border: 1px solid var(--steel); color: var(--ink); }
+.modelListHeader { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.modelListHeader h2 { margin: 0; font: 700 13px Arial, sans-serif; }
+.modelListHeader button { font: inherit; background: transparent; border: 0; color: var(--slate); text-decoration: underline; cursor: pointer; }
+.localModels .modelWarning { border-left: 2px solid var(--slate); padding-left: 12px; margin-bottom: 16px; }
 .keyField { display: flex; }
 .keyField button { background: var(--steel); border: 1px solid var(--steel); padding: 0 13px; font-size: 11px; }
 .form .sources { margin-top: 12px; border-top: 1px solid var(--steel); padding-top: 24px; }

@@ -10,6 +10,7 @@ function Stop-WithHelp([string]$message) {
 
 Write-Host "`nPharmind Local workspace" -ForegroundColor Cyan
 Write-Host "First launch downloads app dependencies and local embedding/reranking models. Research runs locally by default. Optional cloud providers are configured in the app."
+Write-Host "Ollama and the model that writes answers must be installed separately on your computer."
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Stop-WithHelp "Docker was not found. Install Docker Desktop from https://www.docker.com/products/docker-desktop/ and start it, then double-click start-pharmind-local.bat again."
@@ -58,6 +59,22 @@ for ($i = 0; $i -lt 60; $i++) {
     try { $health = Invoke-RestMethod -Uri "http://127.0.0.1:8001/health" -TimeoutSec 3; $apiReady = $true; break } catch {}
 }
 if (-not $apiReady) { Stop-WithHelp "The local API is still starting or failed. Run stop-pharmind-local.bat, then try again. If it repeats, share the Docker Desktop logs with the project maintainer." }
+
+try {
+    $modelRequest = @{ provider = "ollama"; base_url = "http://localhost:11434" } | ConvertTo-Json -Compress
+    $localModels = Invoke-RestMethod -Uri "http://127.0.0.1:8001/connection/ollama-models" -Method Post -ContentType "application/json" -Body $modelRequest -TimeoutSec 15
+    $answerModels = @($localModels.models | Where-Object { $_.can_chat -ne $false })
+    if ($answerModels.Count -eq 0) {
+        Write-Host "Ollama has no available answer models. Run ollama pull qwen2.5:3b, then refresh models in the app."
+    } else {
+        Write-Host ("Installed Ollama models: " + (($answerModels | ForEach-Object { $_.name }) -join ", "))
+        if (-not ($answerModels | Where-Object { $_.name -eq "qwen2.5:3b" })) {
+            Write-Host "The app's default qwen2.5:3b model is not installed. Choose an installed model in Model & connection and save it."
+        }
+    }
+} catch {
+    Write-Host "Ollama could not be checked. Install/start Ollama for local answers, or choose a BYOK provider in Model & connection."
+}
 
 Write-Host "Preparing local document models (downloads once, then uses the cache)..."
 docker @composeArgs exec -T backend python scripts/prepare_local_models.py
