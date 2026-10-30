@@ -1,8 +1,10 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import type { ChatMessage, ChatSource } from "@/lib/types";
 import DrugInfoCard from "./DrugInfoCard";
+import CitationModal from "./CitationModal";
+import { normalizeChatCitations } from "@/lib/citations";
 import styles from "./ChatInterface.module.css";
 
 interface Props {
@@ -156,104 +158,6 @@ function getSourceMeta(url: string, name?: string): { tag: string; label: string
   return { tag: "Literature", label: name || "Scientific Literature Reference" };
 }
 
-function parseSourcesAndText(rawText: string, initialSources?: ChatSource[]) {
-  let text = rawText || "";
-  const sourcesMap = new Map<string, ChatSource>();
-
-  // Ingest existing sources
-  (initialSources || []).forEach((s) => {
-    const cleaned = cleanUrl(s.url);
-    if (cleaned && !sourcesMap.has(cleaned)) {
-      const meta = getSourceMeta(cleaned, s.name);
-      sourcesMap.set(cleaned, {
-        ...s,
-        num: sourcesMap.size + 1,
-        name: meta.label,
-        url: cleaned,
-      });
-    }
-  });
-
-  // Extract inline markdown citations with URLs: [1](http...) or [SOURCE_1](http...)
-  const inlineMarkdownRegex = /\[(?:SOURCE_)?\d*\]\((https?:\/\/[^\s)]+)\)/gi;
-  let matchMd: RegExpExecArray | null;
-  while ((matchMd = inlineMarkdownRegex.exec(text)) !== null) {
-    const rawUrl = cleanUrl(matchMd[1]);
-    if (rawUrl && !sourcesMap.has(rawUrl)) {
-      const meta = getSourceMeta(rawUrl);
-      sourcesMap.set(rawUrl, {
-        id: `SOURCE_${sourcesMap.size + 1}`,
-        num: sourcesMap.size + 1,
-        name: meta.label,
-        url: rawUrl,
-      });
-    }
-  }
-
-  // Extract any raw trailing Sources / References block
-  const sourcesHeaderRegex = /(?:\r?\n)+\s*(?:Sources|References):?\s*(?:\r?\n)+/i;
-  const parts = text.split(sourcesHeaderRegex);
-  if (parts.length > 1) {
-    text = parts[0].trim();
-    const blockText = parts.slice(1).join("\n");
-    const lines = blockText.split(/\r?\n/);
-    lines.forEach((line) => {
-      const urlMatch = line.match(/(https?:\/\/[^\s)]+)/i);
-      if (urlMatch) {
-        const rawUrl = cleanUrl(urlMatch[1]);
-        if (rawUrl && !sourcesMap.has(rawUrl)) {
-          const meta = getSourceMeta(rawUrl);
-          sourcesMap.set(rawUrl, {
-            id: `SOURCE_${sourcesMap.size + 1}`,
-            num: sourcesMap.size + 1,
-            name: meta.label,
-            url: rawUrl,
-          });
-        }
-      }
-    });
-  }
-
-  // Remove all distracting inline tags from prose:
-  // 1. Markdown link tags: [1](http...) -> remove
-  text = text.replace(/\[\s*(?:SOURCE_)?\d+(?:\s*,\s*(?:SOURCE_)?\d+)*\s*\]\([^)]*\)/gi, "");
-  // 2. Generic markdown links with URLs: [text](http...) -> keep text only if text is descriptive, or remove if citation
-  text = text.replace(/\[(?:\d+|SOURCE_\d+|ref|citation)\]\([^)]*\)/gi, "");
-  // 3. Bracket citation tags: [1], [1, 2], [SOURCE_1], [SOURCE_1, SOURCE_2]
-  text = text.replace(/\[\s*(?:SOURCE_)?\d+(?:\s*,\s*(?:SOURCE_)?\d+)*\s*\]/gi, "");
-  text = text.replace(/\[\s*SOURCE_\w+\s*\]/gi, "");
-  text = text.replace(/\[(?:Citation|Evidence)\s*\d+\]/gi, "");
-  // 4. Any leftover empty brackets or isolated citation tags
-  text = text.replace(/\[\s*\]/g, "");
-  text = text.replace(/\[(?:PubChem|DailyMed|PubMed|ChEMBL)\]/gi, "");
-  // 5. XML/HTML tags
-  text = text.replace(/<\/?(?:ref|source|citation|evidence)[^>]*>/gi, "");
-
-  // Clean and normalize headings:
-  // Convert •**Heading:*, •**Heading:**, **Heading:*, **Heading:** into clean ### Heading
-  text = text.replace(
-    /(?:^|\n)\s*[•*-]?\s*\*\*+([^*\n]+?)(?:\*+:|\*+|\*\*|:\*)\s*(?=\n|$)/g,
-    "\n\n### $1\n\n"
-  );
-  // Remove trailing colon or stray asterisks in markdown headings
-  text = text.replace(/(?:^|\n)\s*###\s+([^\n]+?):+\s*(?=\n|$)/g, "\n\n### $1\n\n");
-  // Clean malformed bold headers like **Heading:* -> **Heading:**
-  text = text.replace(/\*\*([^*\n]+?)\*:/g, "**$1:**");
-  text = text.replace(/\*\*([^*\n]+?):\*/g, "**$1:**");
-
-  // Ensure double newlines before every bullet point and heading
-  text = text.replace(/([^\n])\n\s*([•*-]\s+)/g, "$1\n\n$2");
-  text = text.replace(/([^\n])\n\s*(###\s+)/g, "$1\n\n$2");
-  // Normalize bullet spacing: ensure bullet character has space after it
-  text = text.replace(/(?:^|\n)\s*[•]\s*([^\s•\n])/g, "\n• $1");
-
-  // Fix punctuation spacing resulting from stripped citations (e.g. "stimulant ." -> "stimulant.")
-  text = text.replace(/\s+([.,;:!?])/g, "$1");
-  text = text.replace(/[ \t]{2,}/g, " ");
-
-  const sources = Array.from(sourcesMap.values());
-  return { text: text.trim(), sources };
-}
 
 function renderInlineWithFormatting(str: string, baseKey: string) {
   const chunks = str.split(/(\*\*[^*\n]+\*\*)/g);
@@ -272,9 +176,11 @@ function renderInlineWithFormatting(str: string, baseKey: string) {
 function FormattedProse({
   text,
   sources,
+  onSource,
 }: {
   text: string;
   sources: ChatSource[];
+  onSource: (source: ChatSource) => void;
 }) {
   const normalizedText = text
     .replace(/(?:^|\n)\s*[•*-]\s*\*\*+([^*\n]+?)(?:\*+:|\*+|\*\*|:\*)\s*(?=\n|$)/g, "\n\n### $1\n\n")
@@ -300,27 +206,9 @@ function FormattedProse({
           <span key={`cite-grp-${pIdx}-${idx}`} className={styles.citationGroup}>
             {nums.map((num) => {
               const src = sources.find((s) => s.num === num);
-              const targetUrl = src?.url || inlineUrl || `#source-${num}`;
-              return (
-                <a
-                  key={`cite-${num}`}
-                  href={targetUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={styles.citationPill}
-                  title={src ? `${src.name}\n${src.url}` : `Citation [${num}]`}
-                  onClick={(e) => {
-                    if (!src?.url && !inlineUrl) {
-                      e.preventDefault();
-                      document
-                        .getElementById(`source-${num}`)
-                        ?.scrollIntoView({ behavior: "auto" });
-                    }
-                  }}
-                >
-                  {num}
-                </a>
-              );
+              if (!src) return null;
+              return <button key={`cite-${num}`} type="button" className={styles.citationPill}
+                title={`View source ${num}: ${src.name}`} onClick={() => onSource(src)}>{num}</button>;
             })}
           </span>
         );
@@ -367,36 +255,26 @@ function FormattedProse({
 }
 
 function AssistantTextCard({ msg }: { msg: ChatMessage }) {
-  const { text, sources } = parseSourcesAndText(msg.text || "", msg.sources);
+  const { text, sources } = normalizeChatCitations(msg.text || "", msg.sources);
+  const [selectedSource, setSelectedSource] = useState<ChatSource | null>(null);
 
   return (
     <div className={styles.assistantTextCard}>
-      <FormattedProse text={text} sources={sources} />
+      <FormattedProse text={text} sources={sources} onSource={setSelectedSource} />
+      {selectedSource && <CitationModal citation={{ source: selectedSource.name, url: selectedSource.url || undefined, text: selectedSource.text, document_id: selectedSource.document_id }} onClose={() => setSelectedSource(null)} />}
 
       {sources.length > 0 && (
         <div className={styles.sourcesContainer}>
           <div className={styles.sourcesHeader}>
-            <span className={styles.sourcesTitle}>Sources &amp; References</span>
+            <span className={styles.sourcesTitle}>{sources.some(source => source.cited !== false) ? "Cited sources" : "Consulted passages (not claim citations)"}</span>
             <span className={styles.sourcesCount}>· {sources.length}</span>
           </div>
 
           <div className={styles.sourcesGrid}>
             {sources.map((src) => {
               return (
-                <a
-                  key={src.num}
-                  id={`source-${src.num}`}
-                  href={src.url.startsWith("doc:") ? undefined : src.url}
-                  target={src.url.startsWith("doc:") ? undefined : "_blank"}
-                  rel={src.url.startsWith("doc:") ? undefined : "noopener noreferrer"}
-                  className={styles.sourceCard}
-                  title={src.url}
-                  onClick={(e) => {
-                    if (src.url.startsWith("doc:")) {
-                      e.preventDefault();
-                    }
-                  }}
-                >
+                <button type="button" key={src.num} className={styles.sourceCard}
+                  onClick={() => setSelectedSource(src)} title={`Inspect ${src.name}`}>
                   <span className={styles.sourceNum}>{src.num}</span>
                   <div className={styles.sourceInfo}>
                     <span className={styles.sourceName}>{src.name}</span>
@@ -423,7 +301,7 @@ function AssistantTextCard({ msg }: { msg: ChatMessage }) {
                       <polyline points="7 7 17 7 17 17" />
                     </svg>
                   )}
-                </a>
+                </button>
               );
             })}
           </div>

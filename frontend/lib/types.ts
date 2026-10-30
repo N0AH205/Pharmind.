@@ -469,7 +469,19 @@ export interface QueryResponse {
   error?: string;
 }
 
+export interface ResearchDocument {
+  document_id: string;
+  filename: string;
+  pages: number;
+  chunks: number;
+  associated_drug?: string;
+  original_available?: boolean;
+}
+
 export interface ChatSource {
+  document_id?: string;
+  page?: number;
+  cited?: boolean;
   id: string;
   num: number;
   name: string;
@@ -493,6 +505,7 @@ export interface ChatMessage {
 export type ChatMode = "paper_learning" | "structure_science" | "molecule_theory";
 
 export interface ChatSession {
+  activeDocument?: ResearchDocument;
   id: string;
   title: string;
   createdAt: number;

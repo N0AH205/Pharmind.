@@ -11,7 +11,7 @@ ENV BACKEND_URL=http://127.0.0.1:8000
 RUN npm run build
 
 # Final runner stage (Python + Node static server or FastAPI mounting)
-FROM python:3.10-slim
+FROM python:3.13-slim
 
 WORKDIR /app
 
@@ -32,8 +32,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 
 # Copy backend requirements and install
 COPY backend/requirements.txt ./backend/requirements.txt
-RUN pip install --no-cache-dir -r ./backend/requirements.txt \
-    && pip install --no-cache-dir pypdf python-multipart flashrank
+RUN pip install --no-cache-dir -r ./backend/requirements.txt
 
 # Copy backend source
 COPY backend/ ./backend/

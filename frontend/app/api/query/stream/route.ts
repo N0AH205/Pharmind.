@@ -15,6 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     const backendRes = await fetch(`${backendUrl}/query/stream`, {
       method: "POST",
+      signal: AbortSignal.any([req.signal, AbortSignal.timeout(15 * 60 * 1000)]),
       headers: { "Content-Type": "application/json", "X-Pharmind-Connection": req.headers.get("X-Pharmind-Connection") || "" },
       body: JSON.stringify({ smiles: body.smiles }),
     });

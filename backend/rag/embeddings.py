@@ -10,6 +10,7 @@ excellent performance for biomedical and general RAG text.
 
 from __future__ import annotations
 
+import threading
 import logging
 import os
 from pathlib import Path
@@ -24,18 +25,20 @@ logger = logging.getLogger(__name__)
 EMBED_MODEL_NAME = "BAAI/bge-small-en-v1.5"
 
 _embedding_model: TextEmbedding | None = None
+_embedding_lock = threading.Lock()
 
 
 def get_embedding_model() -> TextEmbedding:
     """Return lazy-initialized FastEmbed TextEmbedding singleton."""
     global _embedding_model
-    if _embedding_model is None:
-        logger.info(f"Loading local embedding model: {EMBED_MODEL_NAME}...")
-        cache_dir = Path(os.getenv("PHARMER_MODEL_CACHE", "./.cache")) / "embeddings"
-        try:
-            _embedding_model = TextEmbedding(model_name=EMBED_MODEL_NAME, cache_dir=str(cache_dir), local_files_only=True)
-        except Exception as exc:
-            raise RuntimeError("Local embedding model is not ready. Run python scripts/prepare_local_models.py from the backend directory while online, then retry.") from exc
+    with _embedding_lock:
+        if _embedding_model is None:
+            logger.info(f"Loading local embedding model: {EMBED_MODEL_NAME}...")
+            cache_dir = Path(os.getenv("PHARMER_MODEL_CACHE", "./.cache")) / "embeddings"
+            try:
+                _embedding_model = TextEmbedding(model_name=EMBED_MODEL_NAME, cache_dir=str(cache_dir), local_files_only=True)
+            except Exception as exc:
+                raise RuntimeError("Local embedding model is not ready. Run python scripts/prepare_local_models.py from the backend directory while online, then retry.") from exc
     return _embedding_model
 
 

@@ -225,3 +225,9 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+dialog.backdrop { width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; color: inherit; }
+
+.modal { max-height: calc(100dvh - 32px); }
+.body { min-height: 0; overflow-y: auto; }
+.header, .footer, .editorContainer { flex-shrink: 0; }

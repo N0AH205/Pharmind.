@@ -95,7 +95,7 @@ The optional root single-container Dockerfile also retains its internal ports. I
 
 ## Start without Docker
 
-Use Python 3.10+ and a supported Node.js version for Next.js 16. Install the existing dependencies:
+Use Python 3.13 and Node.js 22, matching the Docker and CI environments. Install the pinned dependencies:
 
 ```sh
 cd backend
@@ -130,31 +130,49 @@ Entered keys are not written to backend files, included in chat history, or retu
 
 Connection testing checks Ollama's installed model list or the selected provider's model endpoint. It does not send a research prompt or verify answer quality.
 
-Local mode blocks automatic external structure images and the externally hosted visual molecule editor. You can still enter SMILES and use the editor's local templates. Enabling online sources enables the external editor and structure images as well as database lookups. Clicking an external citation is a deliberate visit to that source.
+The structure editor is bundled and served locally, including its templates. It works with online sources off. External structure images and database lookups require online sources to be enabled. Clicking an external citation is a deliberate visit to that source.
 
 ## Research workflow
 
-- **Paper learning:** Upload and index literature, then ask about methods, findings, and limitations.
+- **Paper learning:** Upload a text-based PDF (up to 20 MB and 500 pages), or choose **Use paper** from the document library. Answers search only the selected document. Its selection is saved with the notebook. Unlink it to return to broader research.
+- **Document library:** Originals are saved locally and can be viewed from the library or a citation. Identical uploads with the same compound tag are deduplicated. Different files with the same filename stay separate. Choose **Replace** before uploading an updated PDF to remove the old passages and original file. Deleting a paper clears its notebook selections; existing answers remain in your notebooks.
 - **Structure & science:** Enter a compound name or SMILES to explore structures and grounded profiles. Offline name resolution depends on locally available records; import literature or use SMILES when a compound is unavailable.
 - **Molecule theory:** Ask about mechanisms, interactions, and structure–activity relationships.
-- **Notebooks:** Conversations are saved in the browser and can be reopened or deleted from the sidebar.
-- **References:** Inspect source passages and export profiles. Existing comparisons and citation tools remain available.
+- **Notebooks:** Conversations are saved in the browser and can be reopened or deleted from the sidebar. **Export** downloads a JSON backup; **Import** merges a backup, keeping the newer version of notebooks with matching IDs. Backups contain conversations and document references, not PDF files, model caches, or connection credentials. Back up the research-data volume separately for PDFs and their index.
+- **References:** Inline references open retrieved passages and PDF pages. Passages consulted by a model that supplied no valid citation markers are labelled separately from claim citations.
+- **Comparisons:** Choose any two profiles from the current notebook. Missing regulatory or safety evidence is shown as unavailable.
+- **Long requests:** Use **Stop request** to cancel a model request. Chat requests time out after five minutes; structured profiles after fifteen. PDF indexing runs in a worker thread and finishes independently if the library is closed.
+
+In **Model & connection**, use **Check local readiness** to check the embedding cache and document count. **Test connection** checks your chosen inference model separately. A cached reranker is optional; without it, results use vector ranking.
+
+## Current limits
+
+- Scanned and image-only PDFs require OCR before upload. Equations, complex tables, and multi-column layouts can lose structure during text extraction.
+- Ordinary chat returns a completed answer. Structured profiles stream progress and local Ollama tokens; cloud structured responses currently arrive as one completed result.
+- Older indexed PDFs may lack original files. Re-upload them to enable PDF viewing. Notebook backups do not reconstruct the document library.
+- Small-model scientific accuracy and citation support still require broader evaluation. Passing software tests does not establish clinical reliability.
+- Chroma is used as an embedded local database, with no Chroma HTTP server. The latest available package still has upstream server authorization/code-injection advisories with no published fixed version at this check. Those server endpoints are not exposed by this application; keep this a loopback-only, single-user installation and monitor upstream fixes.
 
 ## Checks
 
 ```sh
 cd frontend
+npm run lint
+npm run typecheck
+npm test
 npm run build
 ```
 
 ```sh
 cd backend
-python -m unittest scripts.test_connection -v
+python -m unittest scripts.test_connection scripts.test_documents scripts.test_requests -v
 python -m compileall -q rag ingest main.py
 ```
 
-Connection tests cover provider selection, session isolation across concurrent streams, key redaction, model availability checks, and online-source blocking. They use mocked providers and do not need real API keys or a running Ollama instance.
+Tests cover provider isolation and credential redaction, document isolation, real PDF extraction into a temporary Chroma collection, replacement/deletion, original PDF serving, citation preservation, disconnect cancellation, readiness, notebook backup validation, and stream parsing. Providers and embeddings are mocked; these checks need no real keys, downloaded models, or running Ollama. GitHub Actions runs lint, types, frontend tests/build, and offline backend tests on pushes and pull requests.
 
 ## License
 
 MIT. Playfair Display is bundled under the SIL Open Font License in `frontend/public/fonts/OFL.txt`.
+
+The bundled [JSME molecule editor](https://github.com/jsme-editor/jsme-editor.github.io) is distributed under BSD-3-Clause. Its pinned npm assets and upstream license notices from `frontend/vendor/jsme` are copied into `public/jsme` by the development/build scripts.

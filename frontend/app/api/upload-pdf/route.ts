@@ -9,10 +9,14 @@ export async function POST(req: NextRequest) {
     const url = new URL(req.url);
     const drugName = url.searchParams.get("drug_name") || "";
 
+    if (Number(req.headers.get("content-length")) > 21 * 1024 * 1024) return NextResponse.json({ success: false, error: "PDFs must be 20 MB or smaller." }, { status: 413 });
+    const replacement = url.searchParams.get("replace_document_id");
     const formData = await req.formData();
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size > 20 * 1024 * 1024) return NextResponse.json({ success: false, error: "Choose a PDF of 20 MB or smaller." }, { status: 400 });
 
     const res = await fetch(
-      `${backendUrl}/upload-pdf?drug_name=${encodeURIComponent(drugName)}`,
+      `${backendUrl}/upload-pdf?drug_name=${encodeURIComponent(drugName)}${replacement ? `&replace_document_id=${encodeURIComponent(replacement)}` : ""}`,
       {
         method: "POST",
         body: formData,

@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
 
     const res = await fetch(`${backendUrl}/chat`, {
       method: "POST",
+      signal: AbortSignal.any([req.signal, AbortSignal.timeout(5 * 60 * 1000)]),
       headers: { "Content-Type": "application/json", "X-Pharmind-Connection": req.headers.get("X-Pharmind-Connection") || "" },
       body: JSON.stringify(body),
     });

@@ -6,6 +6,7 @@ import re
 import logging
 
 from rag.context_builder import build_context
+from starlette.concurrency import run_in_threadpool
 from rag.config import sources_enabled
 from rag.llm import generate_chat_response
 from rag.reranker import rerank_passages
@@ -77,10 +78,6 @@ def _clean_source_name(chunk: dict) -> str:
 
 def _sanitize_chat_formatting(text: str) -> str:
     """Sanitize and normalize formatting quirks (unbalanced asterisks, bullet-headers, raw URLs)."""
-    # 1. Strip markdown link URLs attached to citations: [1](http...) -> empty, [SOURCE_1](http...) -> empty
-    text = re.sub(r"\[\s*(?:SOURCE_)?\d+(?:\s*,\s*(?:SOURCE_)?\d+)*\s*\](?:\([^)]*\))?", "", text, flags=re.I)
-    text = re.sub(r"\[\s*SOURCE_\w+\s*\](?:\([^)]*\))?", "", text, flags=re.I)
-
     # 2. Convert bullet-heading hybrids like •**Heading:* or • **Heading:** or **Heading:* into clean markdown headings
     def _clean_heading(m: re.Match) -> str:
         title = m.group(1).strip().rstrip(":").rstrip("*").strip()
@@ -121,22 +118,33 @@ async def answer_chat_question(
     history: list[dict[str, str]] | None = None,
     active_drug: dict[str, str | None] | None = None,
     mode: str = "structure_science",
+    document_id: str | None = None,
 ) -> tuple[str, list[dict]]:
     """Answer a follow-up, preserving both sides of history and drug identity."""
-    retriever = get_retriever()
+    if mode == "paper_learning" and not document_id:
+        return "Select a paper from your document library or upload a PDF before asking paper-learning questions.", []
+    retriever = await run_in_threadpool(get_retriever)
     active_drug = active_drug or {}
     drug_name = (active_drug.get("name") or "unspecified compound").strip()
     cid = (active_drug.get("cid") or "").strip() or None
+    if document_id:
+        selected = await run_in_threadpool(retriever.collection.get,
+            where={"$or": [{"document_id": document_id}, {"doc_id": document_id}]}, include=["metadatas"])
+        if not selected.get("ids"):
+            return "The selected paper is no longer in your library. Select a saved paper or upload it again.", []
+        drug_name = selected["metadatas"][0].get("drug", "selected paper")
+        cid = None
     query = f"{drug_name}: {question}" if cid else question
-    indexed_cid = cid if cid and retriever.get_drug_chunk_count(cid) else None
+    indexed_cid = cid if cid and await run_in_threadpool(retriever.get_drug_chunk_count, cid) else None
     chunks = await retriever.retrieve(
         query=query,
         n_results=16,
         pubchem_cid=indexed_cid,
+        document_id=document_id,
         drug_name=drug_name if not indexed_cid and active_drug.get("name") else None,
     )
     online_chunks: list[dict] = []
-    if sources_enabled():
+    if sources_enabled() and not document_id:
         # Search live for the user's actual question; the local index may not
         # contain recent or narrowly scoped papers for this topic.
         try:
@@ -172,8 +180,8 @@ async def answer_chat_question(
     # reranker is unavailable, vector distances from the two sources are not
     # directly comparable, so rank each pool independently.
     ranked = (
-        rerank_passages(query=query, chunks=chunks, top_k=5)
-        + rerank_passages(query=query, chunks=online_chunks, top_k=5)
+        await run_in_threadpool(rerank_passages, query=query, chunks=chunks, top_k=5)
+        + await run_in_threadpool(rerank_passages, query=query, chunks=online_chunks, top_k=5)
     )
     context, source_map = build_context(ranked)
     mode_guidance = CHAT_MODE_GUIDANCE.get(mode, CHAT_MODE_GUIDANCE["structure_science"])
@@ -193,63 +201,33 @@ async def answer_chat_question(
 
     answer = await generate_chat_response(prompt, conversation)
 
-    # 1. Detect all SOURCE_N referenced in answer in order of appearance
-    found_sids = re.findall(r"\bSOURCE_(\d+)\b", answer, flags=re.IGNORECASE)
-    sid_to_num: dict[str, int] = {}
-    sources: list[dict] = []
+    return format_chat_citations(answer, source_map)
 
-    for sid_num in found_sids:
-        full_sid = f"SOURCE_{sid_num}".upper()
-        if full_sid not in sid_to_num and full_sid in source_map:
-            new_num = len(sid_to_num) + 1
-            sid_to_num[full_sid] = new_num
-            chunk = source_map[full_sid]
-            raw_url = chunk.get("url") or ""
-            clean_url = _clean_source_url(raw_url, chunk)
-            name = _clean_source_name(chunk)
-            sources.append({
-                "id": full_sid,
-                "num": new_num,
-                "name": name,
-                "url": clean_url,
-                "field": chunk.get("field", ""),
-                "text": chunk.get("text", "")[:350],
-            })
 
-    # Also extract any markdown links with URLs [X](https://...) from the answer
-    for m in re.finditer(r"\[(?:SOURCE_)?\d*\]\((https?://[^\s)]+)\)", answer, flags=re.IGNORECASE):
-        url = _clean_source_url(m.group(1))
-        if url and not any(s.get("url") == url for s in sources):
-            num = len(sources) + 1
-            sources.append({
-                "id": f"SOURCE_{num}",
-                "num": num,
-                "name": "Literature Reference",
-                "url": url,
-                "field": "",
-                "text": "",
-            })
+def format_chat_citations(answer: str, source_map: dict) -> tuple[str, list[dict]]:
+    labels = list(dict.fromkeys(label.upper() for label in re.findall(r"\bSOURCE_\d+\b", answer, flags=re.I) if label.upper() in source_map))
+    cited = bool(labels)
+    if not labels:
+        labels = list(source_map)[:4]
+    numbers = {label: i + 1 for i, label in enumerate(labels)}
+    sources = []
+    for label in labels:
+        chunk = source_map[label]
+        doc_id = chunk.get("document_id") or chunk.get("doc_id") or ""
+        page = chunk.get("page", 1)
+        url = _clean_source_url(chunk.get("url"))
+        if doc_id and chunk.get("original_available"):
+            url = f"/api/documents/{doc_id}/file#page={page}"
+        sources.append({"id": label, "num": numbers[label], "name": _clean_source_name(chunk),
+                        "url": url, "text": chunk.get("text", "")[:1200], "field": chunk.get("field", ""),
+                        "document_id": doc_id, "page": page, "cited": cited})
 
-    # If the model didn't explicitly cite markers, include top consulted reference chunks
-    if not sources and source_map:
-        for sid, chunk in list(source_map.items())[:4]:
-            raw_url = chunk.get("url") or ""
-            clean_url = _clean_source_url(raw_url, chunk)
-            num = len(sources) + 1
-            sources.append({
-                "id": sid,
-                "num": num,
-                "name": _clean_source_name(chunk),
-                "url": clean_url,
-                "field": chunk.get("field", ""),
-                "text": chunk.get("text", "")[:350],
-            })
+    def marker(match):
+        selected = [numbers[label.upper()] for label in re.findall(r"SOURCE_\d+", match.group(), flags=re.I) if label.upper() in numbers]
+        return "[" + ", ".join(str(n) for n in dict.fromkeys(selected)) + "]" if selected and cited else ""
 
-    # Strip any redundant plain-text trailing "Sources" dump if the model generated one
-    clean_answer = re.sub(r"\n+\s*(?:Sources|References)\s*:\s*\n[\s\S]*$", "", answer, flags=re.IGNORECASE)
-    clean_answer = re.sub(r"\n+\s*Sources\s*\n[\s\S]*$", "", clean_answer, flags=re.IGNORECASE)
-
-    # Normalize structure and clean formatting
-    clean_answer = _sanitize_chat_formatting(clean_answer)
-
-    return clean_answer, sources
+    # URLs generated by a model are not evidence; links come only from retrieved metadata.
+    answer = re.sub(r"\[([^\]]*SOURCE_[^\]]*)\]\([^)]*\)", r"[\1]", answer, flags=re.I)
+    answer = re.sub(r"\[[^\]]*SOURCE_\d+[^\]]*\]", marker, answer, flags=re.I)
+    answer = re.sub(r"\n+\s*(?:Sources|References)\s*:?\s*\n[\s\S]*$", "", answer, flags=re.I)
+    return _sanitize_chat_formatting(answer), sources

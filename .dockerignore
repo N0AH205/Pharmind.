@@ -12,3 +12,8 @@ backend/data/chroma
 backend/local-server*.log
 frontend/local-server*.log
 *.log
+
+data/uploads
+backend/data/uploads
+data/chroma
+frontend/public/jsme

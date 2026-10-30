@@ -15,6 +15,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from starlette.concurrency import run_in_threadpool
 from pydantic import ValidationError
 
 from rag.schema import (
@@ -164,7 +165,7 @@ async def retrieve_field_evidence(
     for category, passages in zip(RETRIEVAL_CATEGORIES, results):
         query = build_retrieval_query(structure_data, field=category["field"])
         hybrid_candidates = hybrid_rerank(query=query, chunks=passages, top_k=min(len(passages), 8))
-        for chunk in rerank_passages(query=query, chunks=hybrid_candidates, top_k=3):
+        for chunk in await run_in_threadpool(rerank_passages, query=query, chunks=hybrid_candidates, top_k=3):
             text = chunk.get("text", "").strip()
             if not text:
                 continue
@@ -1052,7 +1053,7 @@ async def run_pipeline(
     if not is_safe:
         raise ClinicalAdviceRefusal(refusal or "Query contains clinical advice and was refused.")
 
-    retriever = get_retriever()
+    retriever = await run_in_threadpool(get_retriever)
 
     # ── 1. PubChem: resolve SMILES → drug identity ────────────────────────
     structure_data = await resolve_query_structure(smiles)
@@ -1070,7 +1071,7 @@ async def run_pipeline(
         await refresh_compound_sources(structure_data, retriever.collection)
 
     # Ingestion may have populated a previously empty collection.
-    retriever.is_ready()
+    await run_in_threadpool(retriever.is_ready)
 
     indexed_cid = (
         pubchem_cid
@@ -1084,7 +1085,7 @@ async def run_pipeline(
         live_chunks = await search_live_pubmed(structure_data)
         search_failures = list(getattr(live_chunks, "failures", []))
         if live_chunks:
-            chunks = merge_live_field_evidence(structure_data, chunks, live_chunks)
+            chunks = await run_in_threadpool(merge_live_field_evidence, structure_data, chunks, live_chunks)
 
     # 3. Direct DailyMed fallback: if chunks are still sparse (< 6), extract FDA label sections immediately
     if sources_enabled() and len(chunks) < 6:
@@ -1226,7 +1227,7 @@ async def run_pipeline_stream(smiles: str):
     yield {"type": "status", "stage": "resolving_structure", "message": "Resolving chemical structure via local RDKit engine..."}
     structure_data = await resolve_query_structure(smiles)
 
-    retriever = get_retriever()
+    retriever = await run_in_threadpool(get_retriever)
     pubchem_cid = str(structure_data.get("pubchem_cid") or "")
     drug_name = str(structure_data.get("common_name") or structure_data.get("iupac_name") or "").strip()
     if not pubchem_cid and not drug_name:
@@ -1236,7 +1237,7 @@ async def run_pipeline_stream(smiles: str):
         yield {"type": "status", "stage": "online_search", "message": f"Searching PubChem, DailyMed, PubMed, and ClinicalTrials.gov for {drug_name}..."}
         from rag.online_search import refresh_compound_sources
         await refresh_compound_sources(structure_data, retriever.collection)
-    retriever.is_ready()
+    await run_in_threadpool(retriever.is_ready)
     yield {"type": "status", "stage": "retrieving", "message": f"Searching local ChromaDB vector database for CID {pubchem_cid or 'compound'}..."}
 
     indexed_cid = (
@@ -1252,7 +1253,7 @@ async def run_pipeline_stream(smiles: str):
         live_chunks = await search_live_pubmed(structure_data)
         search_failures = list(getattr(live_chunks, "failures", []))
         if live_chunks:
-            chunks = merge_live_field_evidence(structure_data, chunks, live_chunks)
+            chunks = await run_in_threadpool(merge_live_field_evidence, structure_data, chunks, live_chunks)
 
         if not chunks or len(chunks) < 6:
             try:

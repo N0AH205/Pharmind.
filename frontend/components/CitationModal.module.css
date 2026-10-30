@@ -148,3 +148,5 @@
 .actionBtn:hover {
   background: var(--bg-surface);
 }
+
+dialog.overlay { width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; color: inherit; }

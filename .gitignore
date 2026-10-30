@@ -1,6 +1,7 @@
 # Node
 node_modules/
 .next/
+frontend/public/jsme/
 out/
 dist/
 build/
@@ -18,6 +19,8 @@ venv/
 data/chroma/
 backend/data/chroma/
 data/raw/
+data/uploads/
+backend/data/uploads/
 **/cache/
 *.tsbuildinfo
 

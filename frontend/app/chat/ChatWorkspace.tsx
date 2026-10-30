@@ -2,8 +2,10 @@
 
 import { useState, useCallback, useRef, useEffect, type KeyboardEvent } from "react";
 import Link from "next/link";
-import { DEFAULT_CONNECTION, getConnection, PROVIDERS } from "@/lib/connection";
-import type { ChatMessage, ChatMode, ChatSession, DrugInfo } from "@/lib/types";
+import { getConnection, PROVIDERS } from "@/lib/connection";
+import type { ChatMessage, ChatMode, ChatSession, DrugInfo, ResearchDocument } from "@/lib/types";
+import { useBrowserReady } from "@/lib/useBrowserReady";
+import { mergeNotebooks, parseNotebookBackup, validateNotebooks } from "@/lib/notebooks";
 import { queryDrugStream } from "@/lib/api";
 import ChatInterface from "@/components/ChatInterface";
 import PDFDropzone from "@/components/PDFDropzone";
@@ -22,19 +24,31 @@ const CHAT_MODES: { id: ChatMode; title: string; description: string }[] = [
   { id: "molecule_theory", title: "Molecule theory", description: "Explore mechanisms, molecular interactions, and structure–activity relationships." },
 ];
 
-export default function ChatWorkspace({ initialQuery = "", initialMode = "structure_science" }: Props) {
-  const [connection, setConnection] = useState(DEFAULT_CONNECTION);
-  useEffect(() => {
-    setConnection(getConnection());
-    if (window.matchMedia("(max-width: 760px)").matches) setSidebarOpen(false);
-  }, []);
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
+export default function ChatWorkspace(props: Props) {
+  const ready = useBrowserReady();
+  return ready ? <LocalWorkspace {...props} /> : <main id="main-content" aria-busy="true" className={styles.workspaceNotice}>Opening workspace…</main>;
+}
+
+function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }: Props) {
+  const [connection] = useState(getConnection);
+  const [saved] = useState(() => {
+    try {
+      const raw = localStorage.getItem("pharmind_chat_sessions_v1");
+      return { notebooks: raw ? validateNotebooks(JSON.parse(raw)) : [], error: "" };
+    } catch {
+      return { notebooks: [], error: "Saved notebooks could not be read. Import a backup to recover them." };
+    }
+  });
+  const [sessions, setSessions] = useState<ChatSession[]>(saved.notebooks);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const activeSessionIdRef = useRef<string | null>(null);
-  const [hasHydrated, setHasHydrated] = useState(false);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatMode, setChatMode] = useState<ChatMode>(initialMode);
+  const requestRef = useRef<AbortController | null>(null);
+  const backupInputRef = useRef<HTMLInputElement>(null);
+  const [storageNotice, setStorageNotice] = useState(saved.error);
+  const [comparison, setComparison] = useState([0, 1]);
   const [loading, setLoading] = useState(false);
   const [streamStatus, setStreamStatus] = useState<string>("");
   const [compareModalOpen, setCompareModalOpen] = useState(false);
@@ -44,14 +58,9 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
     if (pdfModalOpen) pdfDialogRef.current?.showModal();
   }, [pdfModalOpen]);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => !window.matchMedia("(max-width: 760px)").matches);
   const [inputText, setInputText] = useState("");
-  const [activePdf, setActivePdf] = useState<{
-    filename: string;
-    pages: number;
-    chunks: number;
-    associatedDrug?: string;
-  } | null>(null);
+  const [activePdf, setActivePdf] = useState<ResearchDocument | null>(null);
   const heroTextareaRef = useRef<HTMLTextAreaElement>(null);
   const bottomTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -60,29 +69,35 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
   }, [activeSessionId]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("pharmind_chat_sessions_v1");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          setSessions(parsed);
-        }
-      }
-    } catch (e) {
-      console.warn("Failed to load chat sessions:", e);
-    } finally {
-      setHasHydrated(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!hasHydrated) return;
+    // Leave unreadable stored data intact so a manual recovery remains possible.
+    if (saved.error && !sessions.length) return;
     try {
       localStorage.setItem("pharmind_chat_sessions_v1", JSON.stringify(sessions));
-    } catch (e) {
-      console.warn("Failed to save chat sessions:", e);
+    } catch {
+      queueMicrotask(() => setStorageNotice("Notebook storage is full or unavailable. Export a backup before closing this page."));
     }
-  }, [sessions, hasHydrated]);
+  }, [sessions, saved.error]);
+
+  useEffect(() => () => requestRef.current?.abort(), []);
+
+  function exportNotebooks() {
+    const blob = new Blob([JSON.stringify({ format: "pharmind-notebooks", version: 1, notebooks: sessions }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = `pharmind-notebooks-${new Date().toISOString().slice(0, 10)}.json`; link.click();
+    URL.revokeObjectURL(url);
+    setStorageNotice("Notebook backup exported. PDFs and model settings are stored separately.");
+  }
+
+  async function importNotebooks(file?: File) {
+    if (!file) return;
+    try {
+      if (file.size > 20 * 1024 * 1024) throw new Error("Backups must be 20 MB or smaller.");
+      const imported = parseNotebookBackup(await file.text());
+      setSessions(current => mergeNotebooks(current, imported));
+      setStorageNotice(`Imported ${imported.length} notebooks. Paper links require the same local document library.`);
+    } catch (error) { setStorageNotice(error instanceof Error ? error.message : "Could not import this backup."); }
+  }
 
   const drugInfos = messages.filter((m) => m.drugInfo).map((m) => m.drugInfo as DrugInfo);
   const hasStarted = messages.length > 0 || loading;
@@ -91,6 +106,8 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
     if (loading) return;
     const trimmed = queryStr.trim();
     if (!trimmed) return;
+    const controller = new AbortController();
+    requestRef.current = controller;
 
     let currentSessionId = activeSessionIdRef.current;
     const isNewSession = !currentSessionId;
@@ -149,6 +166,7 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
             updatedAt: Date.now(),
             messages: [userMsg],
             mode: chatMode,
+            activeDocument: activePdf ?? undefined,
           };
           return [newSession, ...prev.filter((s) => s.id !== currentSessionId)];
         } else {
@@ -185,8 +203,9 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
         onError: (err) => {
           errorMessage = err;
         },
-      });
+      }, controller.signal);
 
+      requestRef.current = null;
       setLoading(false);
       setStreamStatus("");
 
@@ -232,6 +251,7 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
             updatedAt: Date.now(),
             messages: [userMsg],
             mode: chatMode,
+            activeDocument: activePdf ?? undefined,
           };
           return [newSession, ...prev.filter((s) => s.id !== currentSessionId)];
         } else {
@@ -267,16 +287,17 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
           name: lastDrugInfo.drug_overview?.identity?.generic_name?.content || lastDrugInfo.drug_name?.generic || "",
           cid: (lastDrugInfo.drug_overview?.identifiers?.pubchem_cid ?? lastDrugInfo.chemical_structure?.pubchem_cid)?.toString(),
         }
-        : activePdf?.associatedDrug
-        ? { name: activePdf.associatedDrug }
+        : activePdf?.associated_drug
+        ? { name: activePdf.associated_drug }
         : { name: "" };
 
       const { sendChatMessage } = await import("@/lib/api");
-      const res = await sendChatMessage(trimmed, history, activeDrug, chatMode);
+      const res = await sendChatMessage(trimmed, history, activeDrug, chatMode, { documentId: activePdf?.document_id, signal: controller.signal });
 
       setLoading(false);
       setStreamStatus("");
 
+      requestRef.current = null;
       const assistantMsg: ChatMessage = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
@@ -301,7 +322,7 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
         )
       );
     }
-  }, [activePdf?.associatedDrug, chatMode, loading, messages]);
+  }, [activePdf, chatMode, loading, messages]);
 
   const handleQueryRef = useRef(handleQuery);
   useEffect(() => {
@@ -325,12 +346,14 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
       setActiveSessionId(target.id);
       setMessages(target.messages || []);
       setChatMode(target.mode || "structure_science");
+      setActivePdf(target.activeDocument ?? null);
       setStreamStatus("");
       setInputText("");
     }
   }, [loading, sessions]);
 
   const handleModeChange = (mode: ChatMode) => {
+    if (loading) return;
     setChatMode(mode);
     const sessionId = activeSessionIdRef.current;
     if (sessionId) {
@@ -342,13 +365,14 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
 
   const handleDeleteSession = useCallback((e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
+    if (loading) return;
     setSessions((prev) => prev.filter((s) => s.id !== sessionId));
     if (activeSessionIdRef.current === sessionId) {
       setActiveSessionId(null);
       setMessages([]);
       setStreamStatus("");
     }
-  }, []);
+  }, [loading]);
 
   const handleNewChat = useCallback(() => {
     if (loading) return;
@@ -360,19 +384,9 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
   }, [loading]);
 
   const handlePdfIngested = useCallback(
-    (doc: {
-      filename: string;
-      pages: number;
-      chunks_stored: number;
-      associated_drug: string;
-    }) => {
+    (doc: ResearchDocument) => {
       setChatMode("paper_learning");
-      setActivePdf({
-        filename: doc.filename,
-        pages: doc.pages,
-        chunks: doc.chunks_stored,
-        associatedDrug: doc.associated_drug,
-      });
+      setActivePdf(doc);
       setPdfModalOpen(false);
 
       let currentSessionId = activeSessionIdRef.current;
@@ -386,9 +400,9 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
       const introMsg: ChatMessage = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
-        text: `### ${doc.filename} Indexed Successfully\n\nI have parsed and embedded **${doc.chunks_stored} passages** across **${doc.pages} page(s)** into local vector memory${
+        text: `### ${doc.filename} Selected for paper learning\n\nThis local paper has **${doc.chunks} passages** across **${doc.pages} page(s)** in local vector memory${
           doc.associated_drug ? ` (associated with **${doc.associated_drug}**)` : ""
-        }.\n\nYou can ask questions specifically about this paper, request a structured summary, or compare findings with pharmacology databases.`,
+        }.\n\nYou can ask questions specifically about this paper, request a structured summary, or explore the authors’ conclusions. Answers use this selected paper until you unlink it.`,
         timestamp: new Date().toISOString(),
       };
 
@@ -403,13 +417,14 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
               updatedAt: Date.now(),
               messages: [introMsg],
               mode: "paper_learning",
+              activeDocument: doc,
             },
             ...prev,
           ];
         } else {
           return prev.map((s) =>
             s.id === currentSessionId
-              ? { ...s, updatedAt: Date.now(), messages: [...s.messages, introMsg], mode: "paper_learning" }
+              ? { ...s, updatedAt: Date.now(), messages: [...s.messages, introMsg], mode: "paper_learning", activeDocument: doc }
               : s
           );
         }
@@ -417,6 +432,17 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
     },
     []
   );
+
+  const unlinkPaper = () => {
+    if (loading) return;
+    setActivePdf(null);
+    setSessions(current => current.map(session => session.id === activeSessionIdRef.current ? { ...session, activeDocument: undefined } : session));
+  };
+
+  const documentDeleted = (documentId: string) => {
+    if (activePdf?.document_id === documentId) setActivePdf(null);
+    setSessions(current => current.map(session => session.activeDocument?.document_id === documentId ? { ...session, activeDocument: undefined } : session));
+  };
 
   const handleSubmit = (e?: React.SyntheticEvent) => {
     if (e?.preventDefault) {
@@ -488,6 +514,7 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
             <button
               type="button"
               className={styles.navItem}
+              disabled={loading}
               onClick={() => setPdfModalOpen(true)}
               aria-label="Open document library"
             >
@@ -503,6 +530,11 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
           <div>
             <div className={styles.sectionHeader}>
               <span>YOUR NOTEBOOKS</span>
+            </div>
+            <div className={styles.backupActions}>
+              <button type="button" onClick={exportNotebooks} disabled={!sessions.length}>Export</button>
+              <button type="button" onClick={() => backupInputRef.current?.click()} disabled={loading}>Import</button>
+              <input ref={backupInputRef} type="file" accept="application/json,.json" hidden onChange={event => { void importNotebooks(event.target.files?.[0]); event.target.value = ""; }} />
             </div>
             <div className={styles.recentChatList}>
               {sessions.length === 0 ? (
@@ -578,6 +610,7 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
           </div>
 
           <div className={styles.topbarRight}>
+            <button type="button" className={styles.toolsBtn} disabled={loading} onClick={() => setDrawerOpen(true)}>Structure editor</button>
             {drugInfos.length >= 2 && (
               <button
                 type="button"
@@ -591,13 +624,15 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
                   fontWeight: 600,
                   cursor: "pointer",
                 }}
-                onClick={() => setCompareModalOpen(true)}
+                onClick={() => { setComparison([0, 1]); setCompareModalOpen(true); }}
               >
                 Compare Candidates ({drugInfos.length})
               </button>
             )}
           </div>
         </header>
+        {storageNotice && <div className={styles.workspaceNotice} role="status">{storageNotice}<button type="button" onClick={() => setStorageNotice("")} aria-label="Dismiss notice">×</button></div>}
+        {loading && <div className={styles.workspaceNotice} role="status"><span>{streamStatus || "Working…"}</span><button type="button" onClick={() => requestRef.current?.abort()}>Stop request</button></div>}
         {!hasStarted ? (
           <div className={styles.emptyStateScroll}>
             <div className={styles.emptyHero}>
@@ -628,7 +663,7 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
                   <button
                     type="button"
                     className={styles.clearPdfBtn}
-                    onClick={() => setActivePdf(null)}
+                    onClick={unlinkPaper}
                     title="Unlink paper from active chat context"
                     aria-label="Remove active paper"
                   >
@@ -687,7 +722,8 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
                     <button
                       type="button"
                       className={styles.toolsBtn}
-                      onClick={() => setPdfModalOpen(true)}
+                      disabled={loading}
+              onClick={() => setPdfModalOpen(true)}
                     >
                       <span>+</span>
                       <span>Add a paper</span>
@@ -745,7 +781,7 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
                     <button
                       type="button"
                       className={styles.clearPdfBtn}
-                      onClick={() => setActivePdf(null)}
+                      onClick={unlinkPaper}
                       title="Unlink paper from active chat context"
                       aria-label="Remove active paper"
                     >
@@ -802,7 +838,8 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
                       <button
                         type="button"
                         className={styles.toolsBtn}
-                        onClick={() => setPdfModalOpen(true)}
+                        disabled={loading}
+              onClick={() => setPdfModalOpen(true)}
                       >
                         <span>+</span>
                         <span>Add a paper</span>
@@ -849,7 +886,7 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
                 </button>
               </div>
               <div className={styles.modalBody}>
-                <PDFDropzone onSuccess={handlePdfIngested} />
+                <PDFDropzone onSuccess={handlePdfIngested} onSelect={handlePdfIngested} onDeleted={documentDeleted} />
               </div>
             </div>
           </dialog>
@@ -859,13 +896,17 @@ export default function ChatWorkspace({ initialQuery = "", initialMode = "struct
           onClose={() => setDrawerOpen(false)}
           onApply={(smiles) => {
             setInputText(smiles);
-            handleQuery(smiles);
+            setChatMode("structure_science");
           }}
         />
         {compareModalOpen && drugInfos.length >= 2 && (
           <DrugComparisonModal
-            leftDrug={drugInfos[0]}
-            rightDrug={drugInfos[1]}
+            candidates={drugInfos}
+            leftIndex={comparison[0]}
+            rightIndex={comparison[1]}
+            onSelect={(side, index) => setComparison(current => side === "left" ? [index, current[1]] : [current[0], index])}
+            leftDrug={drugInfos[comparison[0]]}
+            rightDrug={drugInfos[comparison[1]]}
             onClose={() => setCompareModalOpen(false)}
           />
         )}

@@ -1,19 +1,37 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useBrowserReady } from "@/lib/useBrowserReady";
 import { clearConnection, DEFAULT_CONNECTION, getConnection, PROVIDERS, saveConnection, type ModelConnection, type Provider } from "@/lib/connection";
 import styles from "./settings.module.css";
 
 export default function SettingsPage() {
-  const [connection, setConnection] = useState<ModelConnection>(DEFAULT_CONNECTION);
-  const [ready, setReady] = useState(false);
+  const ready = useBrowserReady();
+  return ready ? <ConnectionSettings /> : <main id="main-content" aria-busy="true">Opening settings…</main>;
+}
+
+function ConnectionSettings() {
+  const ready = true;
+  const [connection, setConnection] = useState<ModelConnection>(getConnection);
   const [testing, setTesting] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [readiness, setReadiness] = useState("");
+  const [checking, setChecking] = useState(false);
   const [showKey, setShowKey] = useState(false);
 
-  useEffect(() => { setConnection(getConnection()); setReady(true); }, []);
+
+  async function checkReadiness() {
+    setChecking(true);
+    try {
+      const response = await fetch("/api/readiness", { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      setReadiness(`${result.message} ${result.chunk_count} indexed passages. ${result.reranker_cached ? "Reranker cached." : "Reranker unavailable; vector ranking will be used."}`);
+    } catch (error) { setReadiness(error instanceof Error ? error.message : "Could not check local readiness."); }
+    finally { setChecking(false); }
+  }
 
   function update(patch: Partial<ModelConnection>) {
     setConnection(current => ({ ...current, ...patch }));
@@ -85,6 +103,8 @@ export default function SettingsPage() {
         </form>
         <aside className={styles.guide}>
           <h2>Local setup</h2>
+          <button type="button" className="btn btn-ghost" onClick={checkReadiness} disabled={checking}>{checking ? "Checking local models…" : "Check local readiness"}</button>
+          {readiness && <p role="status">{readiness}</p>}
           <p>For fully local research, choose Ollama and leave online sources off. Install your model and prepare the local embedding cache while you have an internet connection.</p>
           <div className={styles.guideStep}><span>1</span><div><strong>Install a model</strong><code>ollama pull qwen2.5:3b</code></div></div>
           <div className={styles.guideStep}><span>2</span><div><strong>Prepare the document index</strong><p>Run <code>python scripts/prepare_local_models.py</code> from the backend directory, or use the Docker command in the README.</p></div></div>

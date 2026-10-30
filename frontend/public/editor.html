@@ -32,10 +32,11 @@
           });
         }
         if (jsmeApplet) {
+          window.parent.postMessage({ type: "JSME_READY" }, window.location.origin);
           jsmeApplet.setCallBack("AfterStructureModified", function() {
             try {
               var smiles = jsmeApplet.smiles();
-              window.parent.postMessage({ type: "JSME_SMILES", smiles: smiles }, "*");
+              window.parent.postMessage({ type: "JSME_SMILES", smiles: smiles }, window.location.origin);
             } catch(e) {}
           });
         }
@@ -45,7 +46,7 @@
     }
 
     window.addEventListener("message", function(e) {
-      if (e.data && e.data.type === "SET_SMILES" && jsmeApplet) {
+      if (e.origin === window.location.origin && e.source === window.parent && e.data && e.data.type === "SET_SMILES" && jsmeApplet) {
         try {
           if (e.data.smiles) {
             jsmeApplet.readGenericMolecularInput(e.data.smiles);
@@ -56,7 +57,7 @@
       }
     });
   </script>
-  <script type="text/javascript" src="https://jsme-editor.github.io/dist/jsme/jsme.nocache.js"></script>
+  <script type="text/javascript" src="/jsme/jsme.nocache.js"></script>
 </head>
 <body>
   <div id="jsme_container"></div>

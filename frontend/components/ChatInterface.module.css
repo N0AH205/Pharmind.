@@ -368,3 +368,5 @@
   background: var(--accent-primary);
   flex-shrink: 0;
 }
+.sourceCard { text-align: left; font: inherit; color: var(--ink); cursor: pointer; }
+.citationPill { font: inherit; cursor: pointer; }

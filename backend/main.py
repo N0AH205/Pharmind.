@@ -10,11 +10,12 @@ Endpoints:
   GET  /debug/query-builder  → show what query would be built for a SMILES
 """
 
+import asyncio
 from typing import Literal
 
-from fastapi import FastAPI, Query, UploadFile, File
+from fastapi import FastAPI, Query, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.exceptions import RequestValidationError
 
 from pydantic import BaseModel, Field
@@ -24,6 +25,9 @@ from rag.retriever import get_retriever
 from rag.query_builder import build_retrieval_query
 from ingest.local_chem import enrich_structure_local as enrich_structure
 from rag.connection_api import router as connection_router, model_connection_context, connection_validation_error
+
+from rag.requests import run_until_disconnect
+from starlette.concurrency import run_in_threadpool
 
 app = FastAPI(
     title="Pharmind Local API",
@@ -49,27 +53,51 @@ app.add_middleware(
 @app.get("/health")
 async def health():
     """Health check — reports retriever readiness and chunk count."""
-    retriever = get_retriever()
+    retriever = await run_in_threadpool(get_retriever)
+    count = await run_in_threadpool(retriever.chunk_count)
     return {
         "status": "ok",
         "phase": 3,
-        "retriever_ready": retriever.is_ready(),
-        "chunk_count": retriever.chunk_count(),
+        "retriever_ready": count > 0,
+        "chunk_count": count,
     }
 
 
+@app.get("/readiness")
+async def local_readiness():
+    from rag.embeddings import get_embedding_model
+    from pathlib import Path
+    import os
+    health_status = await health()
+    try:
+        await run_in_threadpool(get_embedding_model)
+        embeddings_ready = True
+        message = "Local embeddings are ready."
+    except RuntimeError as exc:
+        embeddings_ready = False
+        message = str(exc)
+    cache = Path(os.getenv("PHARMER_MODEL_CACHE", "./.cache")) / "ms-marco-TinyBERT-L-2-v2"
+    reranker_cached = all((cache / name).is_file() for name in ("config.json", "tokenizer.json", "flashrank-TinyBERT-L-2-v2.onnx"))
+    return {"success": True, **health_status, "embeddings_ready": embeddings_ready,
+            "reranker_cached": reranker_cached, "message": message}
+
+
 @app.post("/query", response_model=None)
-async def query_drug(req: QueryRequest):
+async def query_drug(req: QueryRequest, request: Request):
     """
     Accept a SMILES string and return a structured DrugInfo object.
 
     Flow: SMILES → Local RDKit → ChromaDB → Qwen (Ollama) → Pydantic → JSON
-    Falls back to mock data if ChromaDB is empty.
+    Missing evidence is reported explicitly.
     """
     from rag.safety import ClinicalAdviceRefusal
     try:
-        result: DrugInfo = await run_pipeline(req.smiles, debug=False)
+        result: DrugInfo = await run_until_disconnect(request, run_pipeline(req.smiles, debug=False), 900)
         return {"success": True, "data": result.model_dump()}
+    except HTTPException:
+        raise
+    except asyncio.TimeoutError:
+        return JSONResponse(status_code=504, content={"success": False, "error": "The model took too long. Try a smaller model."})
     except ClinicalAdviceRefusal as exc:
         return JSONResponse(
             status_code=400,
@@ -83,37 +111,35 @@ async def query_drug(req: QueryRequest):
 
 
 class ChatRequest(BaseModel):
-    question: str
+    question: str = Field(min_length=1, max_length=12000)
+    document_id: str | None = Field(default=None, max_length=200)
     history: list[dict[str, str]] = Field(default_factory=list)
     active_drug: dict[str, str | None] = Field(default_factory=dict)
     mode: Literal["paper_learning", "structure_science", "molecule_theory"] = "structure_science"
 
 @app.post("/chat")
-async def chat_endpoint(req: ChatRequest):
+async def chat_endpoint(req: ChatRequest, request: Request):
     """
     Conversational Q&A endpoint for follow-up questions and pharmacology discussion.
     """
     from rag.chat import answer_chat_question
     from rag.safety import check_query_safety
-    is_safe, refusal = await check_query_safety(req.question)
-    if not is_safe:
-        return {
-            "success": True,
-            "answer": refusal or "Pharmind is designed for educational and reference purposes only. We cannot provide patient-specific clinical advice, diagnosis, or personal dosage instructions. Always consult a licensed clinician for medical guidance."
-        }
+    async def answer():
+        is_safe, refusal = await check_query_safety(req.question)
+        if not is_safe:
+            return {"success": True, "answer": refusal or "Patient-specific clinical advice is outside this research workspace.", "sources": []}
+        reply_answer, reply_sources = await answer_chat_question(
+            req.question, history=req.history, active_drug=req.active_drug,
+            mode=req.mode, document_id=req.document_id,
+        )
+        return {"success": True, "answer": reply_answer, "sources": reply_sources}
 
     try:
-        reply_answer, reply_sources = await answer_chat_question(
-            req.question,
-            history=req.history,
-            active_drug=req.active_drug,
-            mode=req.mode,
-        )
-        return {
-            "success": True,
-            "answer": reply_answer,
-            "sources": reply_sources,
-        }
+        return await run_until_disconnect(request, answer(), 300)
+    except HTTPException:
+        raise
+    except asyncio.TimeoutError:
+        return JSONResponse(status_code=504, content={"success": False, "error": "The model took too long. Try a shorter question or a smaller model."})
     except Exception as exc:
         return JSONResponse(status_code=500, content={"success": False, "error": str(exc)})
 
@@ -121,20 +147,24 @@ async def chat_endpoint(req: ChatRequest):
 @app.post("/upload-pdf")
 async def upload_pdf_endpoint(
     file: UploadFile = File(...),
-    drug_cid: str = Query("custom"),
-    drug_name: str = Query(""),
+    drug_cid: str = Query("custom", max_length=64),
+    drug_name: str = Query("", max_length=200),
+    replace_document_id: str | None = Query(None, max_length=200),
 ):
     """
     Ingest custom lab report or research paper PDF directly into local ChromaDB.
     """
-    from ingest.pdf_ingest import ingest_pdf_bytes
+    from ingest.pdf_ingest import ingest_pdf_bytes, MAX_PDF_BYTES
     try:
-        content = await file.read()
+        content = await file.read(MAX_PDF_BYTES + 1)
+        if len(content) > MAX_PDF_BYTES:
+            raise ValueError("PDFs must be 20 MB or smaller.")
         res = await ingest_pdf_bytes(
             content,
             filename=file.filename or "uploaded.pdf",
             drug_cid=drug_cid,
             drug_name=drug_name,
+            replace_document_id=replace_document_id,
         )
         return {"success": True, "data": res}
     except Exception as exc:
@@ -154,18 +184,28 @@ async def list_uploaded_pdfs():
         return JSONResponse(status_code=500, content={"success": False, "error": str(exc)})
 
 
-@app.delete("/uploaded-pdfs/{filename}")
-async def delete_uploaded_pdf_endpoint(filename: str):
+@app.delete("/uploaded-pdfs/{document_id}")
+async def delete_uploaded_pdf_endpoint(document_id: str):
     """
-    Remove an uploaded PDF from the local vector database by filename.
+    Remove an uploaded PDF and its passages by document ID.
     """
     from ingest.pdf_ingest import delete_uploaded_pdf
     try:
-        res = await delete_uploaded_pdf(filename)
+        res = await delete_uploaded_pdf(document_id)
         return res
     except Exception as exc:
         return JSONResponse(status_code=500, content={"success": False, "error": str(exc)})
 
+
+
+@app.get("/documents/{document_id}/file")
+async def original_document(document_id: str):
+    from ingest.pdf_ingest import get_document_file
+    from starlette.concurrency import run_in_threadpool
+    path = await run_in_threadpool(get_document_file, document_id)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Original PDF unavailable. Re-upload older papers to enable viewing.")
+    return FileResponse(path, media_type="application/pdf", headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
 
 @app.post("/query/stream")

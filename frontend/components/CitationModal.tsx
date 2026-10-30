@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useBrowserReady } from "@/lib/useBrowserReady";
 import { createPortal } from "react-dom";
 import styles from "./CitationModal.module.css";
 import type { Citation } from "@/lib/types";
@@ -9,22 +10,20 @@ interface Props {
 }
 
 export default function CitationModal({ citation, onClose }: Props) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useBrowserReady();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => { if (citation && mounted) dialogRef.current?.showModal(); }, [citation, mounted]);
 
   if (!citation || !mounted) return null;
 
   return createPortal(
-    <div className={styles.overlay} onClick={onClose}>
+    <dialog ref={dialogRef} className={styles.overlay} onCancel={onClose} onClick={onClose} aria-labelledby="citation-title">
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <div className={styles.titleGroup}>
             <span className={styles.icon}>📜</span>
             <div>
-              <h3 className={styles.title}>{citation.source}</h3>
+              <h3 id="citation-title" className={styles.title}>{citation.source}</h3>
               {citation.url && (
                 <a
                   href={citation.url}
@@ -66,7 +65,7 @@ export default function CitationModal({ citation, onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>,
+    </dialog>,
     document.body
   );
 }

@@ -73,3 +73,8 @@
 
 .workspaceTitle { font-size: 12px; font-weight: 600; color: var(--slate); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbarLeft { min-width: 0; }
+
+.backupActions { display: flex; gap: 12px; padding: 0 14px 12px; }
+.backupActions button, .workspaceNotice button { background: transparent; border: 0; color: var(--slate); font: inherit; cursor: pointer; text-decoration: underline; }
+.backupActions button:disabled { opacity: .5; cursor: default; }
+.workspaceNotice { padding: 12px 24px; border-bottom: 1px solid var(--steel); color: var(--slate); font-size: .85rem; display: flex; align-items: center; justify-content: space-between; gap: 16px; }

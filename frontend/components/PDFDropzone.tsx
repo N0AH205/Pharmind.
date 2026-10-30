@@ -2,267 +2,85 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { uploadPDF, getUploadedPDFs, deleteUploadedPDF } from "@/lib/api";
+import type { ResearchDocument } from "@/lib/types";
 import styles from "./PDFDropzone.module.css";
 
-interface UploadedDoc {
-  doc_name: string;
-  chunks: number;
-  total_pages: number;
-  upload_date?: string;
-  associated_drug?: string;
+interface Props {
+  onSuccess?: (doc: ResearchDocument) => void;
+  onSelect?: (doc: ResearchDocument) => void;
+  onDeleted?: (documentId: string) => void;
 }
 
-interface PDFDropzoneProps {
-  onSuccess?: (doc: {
-    filename: string;
-    pages: number;
-    chunks_stored: number;
-    associated_drug: string;
-  }) => void;
-}
-
-export default function PDFDropzone({ onSuccess }: PDFDropzoneProps) {
-  const [activeTab, setActiveTab] = useState<"upload" | "library">("upload");
+export default function PDFDropzone({ onSuccess, onSelect, onDeleted }: Props) {
+  const [papers, setPapers] = useState<ResearchDocument[]>([]);
   const [drugName, setDrugName] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-  const [isError, setIsError] = useState(false);
-  const [papers, setPapers] = useState<UploadedDoc[]>([]);
-  const [loadingPapers, setLoadingPapers] = useState(false);
-  const [deletingFile, setDeletingFile] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [replacement, setReplacement] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const fetchPapers = useCallback(() => getUploadedPDFs().then(result => {
+    if (!result.success) throw new Error("Start the local backend to use your document library.");
+    setPapers(result.documents || result.data || []);
+  }).catch(error => {
+    setStatus(error instanceof Error ? error.message : "Could not load your library.");
+  }).finally(() => setLoading(false)), []);
+  useEffect(() => { void fetchPapers(); }, [fetchPapers]);
 
-  const fetchPapers = useCallback(async () => {
-    setLoadingPapers(true);
+  async function upload(file?: File) {
+    if (!file || busy) return;
+    if (!file.name.toLowerCase().endsWith(".pdf") || file.size > 20 * 1024 * 1024) {
+      setStatus("Choose a PDF of 20 MB or less (up to 500 pages)."); return;
+    }
+    setBusy(true); setStatus("Indexing your paper locally. Larger papers can take a few minutes…");
     try {
-      const res = await getUploadedPDFs();
-      const list = Array.isArray(res?.documents)
-        ? res.documents
-        : Array.isArray(res?.data)
-        ? res.data
-        : [];
-      if (res?.success) {
-        setPapers(list);
-      } else {
-        setStatus("The document library is unavailable. Start your local backend and try again.");
-        setIsError(true);
-      }
-    } catch (e) {
-      setStatus("Could not reach your local document library.");
-      setIsError(true);
-    } finally {
-      setLoadingPapers(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchPapers();
-  }, [fetchPapers]);
-
-  async function handleFileSelect(file: File) {
-    if (!file.name.toLowerCase().endsWith(".pdf")) {
-      setStatus("Only PDF files are supported.");
-      setIsError(true);
-      return;
-    }
-
-    setUploading(true);
-    setStatus(`Indexing '${file.name}' in your local library…`);
-    setIsError(false);
-
-    try {
-      const res = await uploadPDF(file, drugName);
-      if (res.success) {
-        setStatus(
-          `Successfully indexed ${res.data.chunks_stored} passages across ${res.data.pages} page(s).`
-        );
-        setIsError(false);
-        fetchPapers();
-        if (onSuccess) {
-          onSuccess({
-            filename: file.name,
-            pages: res.data.pages,
-            chunks_stored: res.data.chunks_stored,
-            associated_drug: drugName,
-          });
-        }
-      } else {
-        setStatus(res.error || "Failed to index PDF.");
-        setIsError(true);
-      }
-    } catch (e: any) {
-      setStatus(e.message || "Failed to upload file.");
-      setIsError(true);
-    } finally {
-      setUploading(false);
-    }
+      const result = await uploadPDF(file, drugName, replacement || undefined);
+      if (!result.success) throw new Error(result.error || "Could not index this paper.");
+      const doc = { ...result.data, chunks: result.data.chunks_stored } as ResearchDocument;
+      setStatus(`Indexed ${doc.chunks} passages. The original PDF is saved locally.`);
+      setReplacement("");
+      await fetchPapers();
+      onSuccess?.(doc);
+    } catch (error) { setStatus(error instanceof Error ? error.message : "Upload failed."); }
+    finally { setBusy(false); if (inputRef.current) inputRef.current.value = ""; }
   }
 
-  async function handleDelete(filename: string) {
-    if (!confirm(`Remove "${filename}" from your local document library?`)) {
-      return;
-    }
-    setDeletingFile(filename);
+  async function remove(doc: ResearchDocument) {
+    if (!confirm(`Delete “${doc.filename}” and its indexed passages from this library?`)) return;
+    setBusy(true); setStatus("");
     try {
-      const res = await deleteUploadedPDF(filename);
-      if (res.success) {
-        setPapers((prev) => prev.filter((p) => p.doc_name !== filename));
-        setStatus(`Removed "${filename}" (${res.deleted_chunks} chunks deleted).`);
-        setIsError(false);
-      } else {
-        setStatus(res.error || "Failed to delete file.");
-        setIsError(true);
-      }
-    } catch (e: any) {
-      setStatus(e.message || "Failed to delete file.");
-      setIsError(true);
-    } finally {
-      setDeletingFile(null);
-    }
+      const result = await deleteUploadedPDF(doc.document_id);
+      if (!result.success) throw new Error(result.error || "Could not delete this paper.");
+      onDeleted?.(doc.document_id);
+      if (replacement === doc.document_id) setReplacement("");
+      await fetchPapers();
+    } catch (error) { setStatus(error instanceof Error ? error.message : "Deletion failed."); }
+    finally { setBusy(false); }
   }
 
-  return (
-    <div className={styles.wrapper}>
-      {/* Navigation Tabs */}
-      <div className={styles.tabBar} role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "upload"}
-          className={`${styles.tabBtn} ${activeTab === "upload" ? styles.tabBtnActive : ""}`}
-          onClick={() => setActiveTab("upload")}
-        >
-          Upload Paper
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "library"}
-          className={`${styles.tabBtn} ${activeTab === "library" ? styles.tabBtnActive : ""}`}
-          onClick={() => {
-            setActiveTab("library");
-            fetchPapers();
-          }}
-        >
-          Indexed Papers ({papers.length})
-        </button>
+  return <div className={styles.wrapper}>
+    <button type="button" className={styles.dropzone} disabled={busy} onClick={() => inputRef.current?.click()}
+      onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); void upload(event.dataTransfer.files[0]); }}>
+      <span className={styles.title}>{busy ? "Indexing paper…" : "Choose or drop a PDF"}</span>
+      <span className={styles.sub}>20 MB maximum · 500 pages · text-based PDFs</span>
+    </button>
+    <input ref={inputRef} type="file" accept="application/pdf,.pdf" hidden disabled={busy} onChange={event => void upload(event.target.files?.[0])} />
+    <label className={styles.sub}>Compound name (optional)<input className={styles.drugNameInput} value={drugName} disabled={busy} onChange={event => setDrugName(event.target.value)} /></label>
+    <label className={styles.sub}>Upload action<select className={styles.drugNameInput} value={replacement} disabled={busy} onChange={event => setReplacement(event.target.value)}>
+      <option value="">Add a new paper</option>
+      {papers.filter(doc => /^[a-f0-9]{64}$/.test(doc.document_id)).map(doc => <option key={doc.document_id} value={doc.document_id}>Replace: {doc.filename} ({doc.associated_drug || "untagged"})</option>)}
+    </select></label>
+    <p className={styles.sub}>Scanned papers need OCR before upload. Use “Replace” to update an existing paper without keeping its old passages.</p>
+    {status && <p role="status" className={styles.sub}>{status}</p>}
+    <h4>Saved papers</h4>
+    {loading && <p role="status">Loading library…</p>}
+    {!loading && !papers.length && <p className={styles.sub}>No papers indexed yet.</p>}
+    {papers.map(doc => <div key={doc.document_id} className={styles.paperItem}>
+      <div className={styles.paperInfo}><strong>{doc.filename}</strong><span className={styles.paperMeta}>{doc.pages} pages · {doc.chunks} passages · {doc.associated_drug}</span>
+        {doc.original_available && <a href={`/api/documents/${encodeURIComponent(doc.document_id)}/file`} target="_blank" rel="noreferrer">View PDF ↗</a>}
       </div>
-
-      {activeTab === "upload" ? (
-        <>
-          <div
-            className={styles.dropzone}
-            role="button"
-            tabIndex={uploading ? -1 : 0}
-            aria-label="Choose a PDF for your local library"
-            aria-disabled={uploading}
-            onKeyDown={event => {
-              if (!uploading && (event.key === "Enter" || event.key === " ")) {
-                event.preventDefault();
-                fileInputRef.current?.click();
-              }
-            }}
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (e.dataTransfer.files?.[0]) {
-                handleFileSelect(e.dataTransfer.files[0]);
-              }
-            }}
-          >
-            <input
-              type="file"
-              accept=".pdf"
-              disabled={uploading}
-              ref={fileInputRef}
-              style={{ display: "none" }}
-              onChange={(e) => {
-                if (e.target.files?.[0]) {
-                  handleFileSelect(e.target.files[0]);
-                }
-              }}
-            />
-            <div className={styles.icon}>PDF</div>
-            <div className={styles.textGroup}>
-              <span className={styles.title}>Add a research paper</span>
-              <span className={styles.sub}>
-                Drop lab reports, clinical trials, or preprints into your local library
-              </span>
-            </div>
-          </div>
-
-          <label className={styles.sub}>
-            Associate with compound name (optional)
-            <input
-              value={drugName}
-              onChange={(event) => setDrugName(event.target.value)}
-              onClick={(event) => event.stopPropagation()}
-              placeholder="e.g. Humira, Semaglutide, or Metformin"
-              className={styles.drugNameInput}
-              aria-label="Compound name for uploaded literature"
-            />
-          </label>
-        </>
-      ) : (
-        /* Paper Library Tab */
-        <div className={styles.paperList}>
-          {loadingPapers && papers.length === 0 ? (
-            <div className={styles.emptyList}>Loading indexed documents…</div>
-          ) : papers.length === 0 ? (
-            <div className={styles.emptyList}>
-              No uploaded literature indexed yet. Switch to "Upload Paper" to add research PDFs.
-            </div>
-          ) : (
-            papers.map((p) => (
-              <div key={p.doc_name} className={styles.paperItem}>
-                <div className={styles.paperInfo}>
-                  <span className={styles.paperName} title={p.doc_name}>
-                    PDF {p.doc_name}
-                  </span>
-                  <div className={styles.paperMeta}>
-                    <span>{p.chunks} chunks</span>
-                    <span>•</span>
-                    <span>{p.total_pages} {p.total_pages === 1 ? "page" : "pages"}</span>
-                    {p.associated_drug && (
-                      <>
-                        <span>•</span>
-                        <span style={{ color: "var(--slate)" }}>Tag: {p.associated_drug}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className={styles.deleteBtn}
-                  onClick={() => handleDelete(p.doc_name)}
-                  disabled={deletingFile === p.doc_name}
-                  title="Remove from vector database"
-                  aria-label={`Delete ${p.doc_name}`}
-                >
-                  {deletingFile === p.doc_name ? "..." : "🗑️"}
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {status && (
-        <div
-          className={`${styles.status} ${
-            isError ? styles.statusError : styles.statusSuccess
-          }`}
-        >
-          {uploading && (
-            <span
-              className="spinner"
-              style={{ width: 12, height: 12, marginRight: 6 }}
-            />
-          )}
-          {status}
-        </div>
-      )}
-    </div>
-  );
+      <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => onSelect?.(doc)}>Use paper</button>
+      <button type="button" className={styles.deleteBtn} disabled={busy} onClick={() => void remove(doc)} aria-label={`Delete ${doc.filename}`}>Delete</button>
+    </div>)}
+  </div>;
 }

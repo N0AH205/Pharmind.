@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import styles from "./MoleculeDrawerModal.module.css";
-import { getConnection } from "@/lib/connection";
 
 interface Props {
   isOpen: boolean;
@@ -26,6 +25,8 @@ export default function MoleculeDrawerModal({
   initialSmiles = "",
 }: Props) {
   const [currentSmiles, setCurrentSmiles] = useState(initialSmiles);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => { if (isOpen) dialogRef.current?.showModal(); }, [isOpen]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Listen for SMILES updates from JSME iframe
@@ -33,11 +34,13 @@ export default function MoleculeDrawerModal({
     function handleMessage(event: MessageEvent) {
       if (event.origin === window.location.origin && event.source === iframeRef.current?.contentWindow && event.data?.type === "JSME_SMILES") {
         setCurrentSmiles(event.data.smiles || "");
+      } else if (event.origin === window.location.origin && event.source === iframeRef.current?.contentWindow && event.data?.type === "JSME_READY") {
+        iframeRef.current?.contentWindow?.postMessage({ type: "SET_SMILES", smiles: currentSmiles }, window.location.origin);
       }
     }
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  }, [currentSmiles]);
 
   // Update JSME when initialSmiles or preset changes
   const loadSmilesIntoEditor = (smiles: string) => {
@@ -50,22 +53,10 @@ export default function MoleculeDrawerModal({
     }
   };
 
-  // Send initial SMILES when iframe finishes loading
-  const handleIframeLoad = () => {
-    if (initialSmiles && iframeRef.current && iframeRef.current.contentWindow) {
-      setTimeout(() => {
-        iframeRef.current?.contentWindow?.postMessage(
-          { type: "SET_SMILES", smiles: initialSmiles },
-          window.location.origin
-        );
-      }, 400);
-    }
-  };
-
   if (!isOpen) return null;
 
   return (
-    <div className={styles.backdrop} onClick={onClose} aria-modal="true" role="dialog">
+    <dialog ref={dialogRef} className={styles.backdrop} onCancel={onClose} onClick={onClose} aria-labelledby="structure-editor-title">
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className={styles.header}>
@@ -84,7 +75,7 @@ export default function MoleculeDrawerModal({
               </svg>
             </div>
             <div>
-              <h3 className={styles.title}>Visual Structure Editor</h3>
+              <h3 id="structure-editor-title" className={styles.title}>Visual Structure Editor</h3>
               <p className={styles.subtitle}>Draw chemical structures or load templates to generate SMILES</p>
             </div>
           </div>
@@ -122,18 +113,18 @@ export default function MoleculeDrawerModal({
 
           {/* JSME Canvas Container */}
           <div className={styles.editorContainer}>
-            {getConnection().online_sources ? <iframe
+            <iframe
               ref={iframeRef}
               src="/editor.html"
               className={styles.iframe}
               title="JSME Chemical Structure Editor"
-              onLoad={handleIframeLoad}
-            /> : <div style={{ padding: "30px", color: "var(--slate)" }}><p>The visual editor loads an external library and is unavailable while online sources are off. Use a template or enter SMILES below.</p><label htmlFor="local-smiles">Molecular SMILES</label><input id="local-smiles" className="input-base" value={currentSmiles} onChange={event => setCurrentSmiles(event.target.value)} /></div>}
+            />
           </div>
 
           {/* SMILES Preview Section */}
           <div className={styles.previewSection}>
-            <span className={styles.previewLabel}>Generated SMILES</span>
+            <label className={styles.previewLabel} htmlFor="local-smiles">Molecular SMILES</label>
+            <input id="local-smiles" className="input-base" value={currentSmiles} onChange={event => loadSmilesIntoEditor(event.target.value)} />
             <div className={styles.previewValue}>
               {currentSmiles ? (
                 currentSmiles
@@ -165,6 +156,6 @@ export default function MoleculeDrawerModal({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

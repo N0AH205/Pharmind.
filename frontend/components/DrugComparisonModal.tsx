@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import styles from "./DrugComparisonModal.module.css";
 import type { DrugInfo } from "@/lib/types";
 
@@ -7,6 +8,10 @@ interface Props {
   leftDrug: DrugInfo | null;
   rightDrug: DrugInfo | null;
   onClose: () => void;
+  candidates: DrugInfo[];
+  leftIndex: number;
+  rightIndex: number;
+  onSelect: (side: "left" | "right", index: number) => void;
 }
 
 function getDrugName(drug: DrugInfo): string {
@@ -56,30 +61,32 @@ function getSafety(drug: DrugInfo): string {
   return (
     drug.toxicology_and_safety?.clinical_safety?.warnings_and_precautions?.content ||
     drug.toxicology?.acute_toxicity?.content ||
-    "No severe clinical hazards reported"
+    "Safety evidence unavailable in this profile"
   );
 }
 
 function getRegulatory(drug: DrugInfo): string {
-  const us = drug.therapeutic_profile?.regulatory_status?.united_states?.status || "Approved";
-  const bpom = drug.therapeutic_profile?.regulatory_status?.indonesia?.status || "Registered";
+  const us = drug.therapeutic_profile?.regulatory_status?.united_states?.status || "Not documented";
+  const bpom = drug.therapeutic_profile?.regulatory_status?.indonesia?.status || "Not documented";
   return `🇺🇸 US FDA: ${us} | 🇮🇩 BPOM: ${bpom}`;
 }
 
-export default function DrugComparisonModal({ leftDrug, rightDrug, onClose }: Props) {
+export default function DrugComparisonModal({ leftDrug, rightDrug, onClose, candidates, leftIndex, rightIndex, onSelect }: Props) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => { dialogRef.current?.showModal(); }, []);
   if (!leftDrug || !rightDrug) return null;
 
   const leftName = getDrugName(leftDrug);
   const rightName = getDrugName(rightDrug);
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
+    <dialog ref={dialogRef} className={styles.overlay} onCancel={onClose} onClick={onClose} aria-labelledby="comparison-title">
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <div className={styles.titleGroup}>
             <span className={styles.icon}>⚖️</span>
             <div>
-              <h3 className={styles.title}>Comparative Pharmacology Analysis</h3>
+              <h3 id="comparison-title" className={styles.title}>Comparative Pharmacology Analysis</h3>
               <p className={styles.subTitle}>
                 Side-by-side evaluation of {leftName} vs. {rightName}
               </p>
@@ -91,6 +98,9 @@ export default function DrugComparisonModal({ leftDrug, rightDrug, onClose }: Pr
         </div>
 
         <div className={styles.body}>
+          <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", marginBottom: "20px" }}>
+            {(["left", "right"] as const).map(side => <label key={side}>{side === "left" ? "First compound " : "Second compound "}<select value={side === "left" ? leftIndex : rightIndex} onChange={event => onSelect(side, Number(event.target.value))}>{candidates.map((drug, index) => <option key={index} value={index} disabled={index === (side === "left" ? rightIndex : leftIndex)}>{getDrugName(drug)} ({index + 1})</option>)}</select></label>)}
+          </div>
           <div className={styles.grid}>
             {/* Left Column */}
             <div className={styles.col}>
@@ -162,6 +172,6 @@ export default function DrugComparisonModal({ leftDrug, rightDrug, onClose }: Pr
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

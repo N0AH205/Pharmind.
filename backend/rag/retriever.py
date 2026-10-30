@@ -15,14 +15,16 @@ Embeddings: local FastEmbed BGE-small ONNX model. No API key required.
 from __future__ import annotations
 
 import os
+import threading
 
 import chromadb
 import httpx
+from starlette.concurrency import run_in_threadpool
 from rag.config import OFFLINE_MODE  # Loads backend/.env before paths are resolved.
 
 def _resolve_chroma_path() -> str:
     env_path = os.getenv("CHROMA_PATH")
-    if env_path and os.path.exists(env_path):
+    if env_path:
         return env_path
     candidates = [
         "data/chroma",
@@ -89,14 +91,20 @@ class Retriever:
             )
         return len(results["ids"])
 
-    async def retrieve(
+    async def retrieve(self, query: str, n_results: int = 8, pubchem_cid: str | None = None,
+                       drug_name: str | None = None, fields: list[str] | None = None,
+                       include_custom_pdf: bool = False, document_id: str | None = None) -> list[dict]:
+        return await run_in_threadpool(self._retrieve, query, n_results, pubchem_cid, drug_name, fields, include_custom_pdf, document_id)
+
+    def _retrieve(
         self,
         query: str,
         n_results: int = 8,
         pubchem_cid: str | None = None,
         drug_name: str | None = None,
         fields: list[str] | None = None,
-        include_custom_pdf: bool = True,
+        include_custom_pdf: bool = False,
+        document_id: str | None = None,
     ) -> list[dict]:
         """
         Return the top-n most semantically relevant chunks for the query.
@@ -118,7 +126,7 @@ class Retriever:
         Returns list of dicts with:
             text, source, url, field, distance, drug, pubchem_cid
         """
-        if not self._ready:
+        if not self.is_ready():
             return []
 
         query_vec = _embed(query)
@@ -126,15 +134,17 @@ class Retriever:
         # Combine drug identity and source-field filters so a section can
         # directly search the matching DailyMed/PubMed categories.
         filters: list[dict] = []
-        if pubchem_cid and pubchem_cid.isdigit():
+        if document_id:
+            filters.append({"$or": [{"document_id": document_id}, {"doc_id": document_id}]})
+        elif pubchem_cid and pubchem_cid.isdigit():
             if include_custom_pdf:
-                filters.append({"$or": [{"pubchem_cid": pubchem_cid}, {"pubchem_cid": "custom"}]})
+                filters.append({"$or": [{"pubchem_cid": pubchem_cid}, {"$and": [{"pubchem_cid": "custom"}, {"drug": (drug_name or "").strip().casefold()}]}]})
             else:
                 filters.append({"pubchem_cid": pubchem_cid})
         elif drug_name or pubchem_cid:
             name_val = (drug_name or pubchem_cid).strip().casefold()
             if include_custom_pdf:
-                filters.append({"$or": [{"drug": name_val}, {"pubchem_cid": "custom"}]})
+                filters.append({"$or": [{"drug": name_val}, {"$and": [{"pubchem_cid": "custom"}, {"drug": (drug_name or "").strip().casefold()}]}]})
             else:
                 filters.append({"drug": name_val})
 
@@ -182,6 +192,7 @@ class Retriever:
                 "doi": meta.get("doi", ""),
                 "pmid": meta.get("pmid", ""),
                 "document_id": meta.get("document_id", ""),
+                "original_available": bool(meta.get("stored_file")),
                 "doc_name": meta.get("doc_name", ""),
                 "page": meta.get("page", 1),
                 "total_pages": meta.get("total_pages", 1),
@@ -209,11 +220,13 @@ class Retriever:
 # ── Module-level singleton ────────────────────────────────────────────────────
 
 _retriever: Retriever | None = None
+_retriever_lock = threading.Lock()
 
 
 def get_retriever() -> Retriever:
     """Return the shared Retriever singleton (lazy-initialised)."""
     global _retriever
-    if _retriever is None:
-        _retriever = Retriever()
+    with _retriever_lock:
+        if _retriever is None:
+            _retriever = Retriever()
     return _retriever
