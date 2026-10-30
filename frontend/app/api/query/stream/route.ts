@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
+  const backendUrl = process.env.BACKEND_URL || "http://localhost:8001";
 
   try {
     const backendRes = await fetch(`${backendUrl}/query/stream`, {

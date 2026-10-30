@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
   try {
-    const response = await fetch(`${process.env.BACKEND_URL || "http://localhost:8000"}/connection/test`, {
+    const response = await fetch(`${process.env.BACKEND_URL || "http://localhost:8001"}/connection/test`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(await req.json()),

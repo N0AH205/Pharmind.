@@ -9,7 +9,7 @@ export async function DELETE(
 ) {
   try {
     const { filename } = await params;
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:8001";
     const res = await fetch(`${backendUrl}/uploaded-pdfs/${encodeURIComponent(filename)}`, {
       method: "DELETE",
     });

@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
  */
 export async function GET() {
   try {
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:8001";
     const res = await fetch(`${backendUrl}/uploaded-pdfs`, { cache: "no-store" });
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });

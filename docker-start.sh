@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "=== Starting PharmaRAG Single-Container Deployment ==="
+echo "=== Starting Pharmind Local Single-Container Deployment ==="
 
 # Set default ports and hostnames
 export PORT=${PORT:-8000}
@@ -31,7 +31,7 @@ cleanup() {
 
 trap cleanup SIGINT SIGTERM
 
-echo "PharmaRAG services are running (Backend: :8000, Frontend: :3000)."
+echo "Pharmind Local services are running (Backend: :8000, Frontend: :3000)."
 
 # Wait for any process to exit
 wait -n "$BACKEND_PID" "$FRONTEND_PID"

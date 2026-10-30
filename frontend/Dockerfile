@@ -7,6 +7,7 @@ RUN npm ci
 
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED 1
+ENV BACKEND_URL=http://backend:8000
 RUN npm run build
 
 FROM node:22-alpine AS runner

@@ -26,7 +26,7 @@ from ingest.local_chem import enrich_structure_local as enrich_structure
 from rag.connection_api import router as connection_router, model_connection_context, connection_validation_error
 
 app = FastAPI(
-    title="Pharmer API",
+    title="Pharmind Local API",
     description="Structured drug-information RAG system — Phase 3",
     version="0.3.0",
 )
@@ -37,7 +37,7 @@ app.add_exception_handler(RequestValidationError, connection_validation_error)
 # The browser UI is served locally; the Next.js backend proxy calls FastAPI server-to-server.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["http://localhost:3001", "http://127.0.0.1:3001"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

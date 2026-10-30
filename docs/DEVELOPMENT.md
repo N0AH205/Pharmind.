@@ -1,4 +1,4 @@
-# Pharmer development guide
+# Pharmind Local development guide
 
 This guide describes the current implementation. The app is local-first; it can run without external network access after its models and local evidence database have been prepared.
 
@@ -18,10 +18,10 @@ The application returns no sample monograph when the local index is empty. Field
 
 Use Python 3.10 or newer and Node.js. Install Python packages from `backend/requirements.txt`; this file includes RDKit, FastEmbed, FlashRank, ChromaDB, PDF parsing, and the API dependencies. Choose a cloud LLM provider in `backend/.env`, or install Ollama and pull a local model.
 
-FastEmbed and FlashRank download their model files on first use. From `backend/`, run:
+Prepare the FastEmbed and FlashRank model cache explicitly while online. From `backend/`, run:
 
 ```bash
-python -c "from rag.embeddings import get_embedding_model; get_embedding_model(); from rag.reranker import get_reranker; get_reranker()"
+python scripts/prepare_local_models.py
 ```
 
 For full monograph queries, prepare a local ChromaDB database using the ingestion command below. Custom PDF ingestion and RDKit structure processing run locally.
@@ -36,11 +36,11 @@ For full monograph queries, prepare a local ChromaDB database using the ingestio
 | FastEmbed/FlashRank/Ollama first-time model setup | Downloads model files |
 | Query against a prepared index, PDF ingestion, RDKit | Local processing |
 
-Online source access is always enabled; `PHARMER_OFFLINE` is ignored. Cloud LLM providers receive prompts, conversation history, and retrieved passages. Ollama can keep inference local, but source searches still use the internet. API keys are only needed for the provider selected in `LLM_PROVIDER`; NCBI's key is optional. The frontend uses system fonts and makes no Google Fonts request.
+Online source access is off by default and controlled separately from the model provider in connection settings. Cloud providers receive prompts, conversation history, and retrieved passages even when online literature sources are off. With Ollama, cached document models, and online sources off, research runs locally. NCBI's key is optional for online searches. Fonts are served locally.
 
 ## Data ingestion and sources
 
-From `backend/`, run `python -m ingest.run_ingest` while network access is enabled. The script fetches the benchmark set from PubChem, up to three useful DailyMed labels per drug, topic-focused PubMed abstracts deduplicated by PMID, and up to 15 ClinicalTrials.gov study records per drug. It chunks label and trial text, stores bibliographic/study identifiers, embeds locally, and writes to ChromaDB. It does not download PubMed full text. The `--quickstart` option builds a smaller Aspirin-only demo. Ingestion volume is intentionally bounded by the search limits in `backend/ingest/run_ingest.py`.
+From `backend/`, run `python -m ingest.run_ingest` with `ONLINE_SOURCES=true` in `backend/.env` while online. The script fetches the benchmark set from PubChem, up to three useful DailyMed labels per drug, topic-focused PubMed abstracts deduplicated by PMID, and up to 15 ClinicalTrials.gov study records per drug. It chunks label and trial text, stores bibliographic/study identifiers, embeds locally, and writes to ChromaDB. It does not download PubMed full text. The `--quickstart` option builds a smaller Aspirin-only demo. Ingestion volume is intentionally bounded by the search limits in `backend/ingest/run_ingest.py`.
 
 The current gold-standard evaluation set contains five drug profiles. Add independently reviewed source-backed reference facts before expanding benchmark claims. Source terms and local copies remain subject to the source provider's license, copyright, and terms. Do not treat API availability as permission to redistribute source text. For custom or novel compounds, associate uploaded PDFs with the exact compound name used in the query; retrieval filters those passages by that name when no indexed CID is available.
 
@@ -51,13 +51,13 @@ Copy `backend/.env.example` to `backend/.env`. Common settings:
 | Variable | Default | Purpose |
 |---|---|---|
 | `LLM_PROVIDER` | `ollama` | `ollama`, `openai`, `anthropic`, or `gemini` |
-| `OLLAMA_MODEL` | `qwen2.5:7b` | Any model already installed in Ollama |
+| `OLLAMA_MODEL` | `qwen2.5:3b` | Any model already installed in Ollama |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | Local Ollama endpoint (Docker uses the host gateway) |
 | `PHARMER_MODEL_CACHE` | `./.cache` | FlashRank model cache directory |
 | `CHROMA_PATH` | discovered local path | Persistent local vector index |
 | `NCBI_API_KEY` | unset | Optional higher PubMed request limit |
 
-The Docker setup mounts persistent ChromaDB and model-cache volumes. The Windows `start-pharmer.bat` launcher prepares a small Aspirin demo index on first run; broader source ingestion remains an explicit step so users can choose when to download it.
+The Docker Compose project is `pharmind-local`, with separate `research-data` and `model-cache` volumes. Host ports are `3001` for the workspace and `8001` for the API; internal ports stay `3000` and `8000`. The Windows `start-pharmind-local.bat` launcher prepares the local document-model cache without ingesting demo literature. `stop-pharmind-local.bat` stops only this project and preserves its volumes. Local frontend development also uses port `3001` and defaults to the API on port `8001`.
 
 ## Evaluation
 

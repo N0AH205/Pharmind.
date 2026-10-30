@@ -1,16 +1,17 @@
+name: pharmind-local
+
 services:
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    container_name: pharmer-backend
     env_file:
       - ./backend/.env
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8001:8000"
     volumes:
-      - ./data:/app/data
-      - pharmer-cache:/app/.cache
+      - research-data:/app/data
+      - model-cache:/app/.cache
     environment:
       - PORT=8000
       - CHROMA_PATH=/app/data/chroma
@@ -26,9 +27,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: pharmer-frontend
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3001:3000"
     environment:
       - BACKEND_URL=http://backend:8000
     depends_on:
@@ -36,4 +36,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  pharmer-cache:
+  research-data:
+  model-cache:

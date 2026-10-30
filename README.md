@@ -1,4 +1,4 @@
-# Pharmind
+# Pharmind Local
 
 A local pharmacology research workspace. Read papers, explore compounds, and keep a browser-based research notebook with an AI model you choose.
 
@@ -57,14 +57,41 @@ For research and education only. Generated answers need source verification and 
    ollama pull qwen2.5:3b
    ```
 
-6. Open [connection settings](http://localhost:3000/settings). Choose your engine, enter the exact installed or provider model ID, test the connection, and save it for this browser session.
+6. Open [connection settings](http://localhost:3001/settings). Choose your engine, enter the exact installed or provider model ID, test the connection, and save it for this browser session.
 7. Open the workspace and add a PDF through **Document library** or **Add a paper**.
 
-On Windows, `start-pharmer.bat` builds the containers, prepares the document model cache, and opens the workspace. It does not ask for a cloud key or automatically ingest online literature. Use `stop-pharmer.bat` to stop the app.
+On Windows, `start-pharmind-local.bat` builds the containers, prepares the document model cache, and opens the workspace. It does not ask for a cloud key or automatically ingest online literature. Use `stop-pharmind-local.bat` to stop the app.
 
 Initial dependency and model downloads require internet access. After preparation, local mode can operate offline. If a model is missing, the app reports the setup step instead of downloading it during your research request.
 
-The Docker backend reaches host Ollama through `host.docker.internal`. The default localhost address in the UI maps to the configured `OLLAMA_BASE_URL`. Compose publishes both application ports only on `127.0.0.1`.
+The Docker backend reaches host Ollama through `host.docker.internal`. The default localhost address in the UI maps to the configured `OLLAMA_BASE_URL`. Both versions can use the same host Ollama installation and downloaded inference models.
+
+### Separate from the original Pharmind
+
+| Resource | Pharmind Local |
+| --- | --- |
+| Compose project | `pharmind-local` |
+| Workspace | `http://localhost:3001` |
+| Backend | `http://localhost:8001` |
+| Containers | `pharmind-local-frontend-1`, `pharmind-local-backend-1` |
+| Research data volume | `pharmind-local_research-data` |
+| Document model cache volume | `pharmind-local_model-cache` |
+
+Docker still uses ports `3000` and `8000` inside its private network. Only host ports `3001` and `8001` are published, bound to `127.0.0.1`. The UI's internal backend address remains `http://backend:8000`.
+
+The Compose file declares its project name explicitly. The Windows launchers also pin the project name and Compose file, so starting or stopping this version targets Pharmind Local even if another project name is set in your shell. When using Compose manually, do not override the name with the original application's `-p` or `COMPOSE_PROJECT_NAME` value.
+
+Research data and document-model caches start in new volumes. Existing containers, volumes, and `./data` folders are not migrated or deleted. Re-upload papers into this version when needed. Browser notebooks and session keys from port `3000` are separate from port `3001`; re-enter your model connection in the new workspace.
+
+Stop only this installation with:
+
+```sh
+docker compose --project-name pharmind-local down
+```
+
+The stop launcher uses the same command and keeps both volumes. Avoid `down --volumes` unless you intend to delete this installation's stored data and model cache. Changing the project name does not rename or stop containers from an earlier installation.
+
+The optional root single-container Dockerfile also retains its internal ports. If using it instead of Compose, build it as `pharmind-local` and map `127.0.0.1:3001:3000` and `127.0.0.1:8001:8000`.
 
 ## Start without Docker
 
@@ -76,7 +103,7 @@ python -m venv .venv
 # Activate .venv for your shell, then:
 pip install -r requirements.txt
 python scripts/prepare_local_models.py
-uvicorn main:app --host 127.0.0.1 --port 8000
+uvicorn main:app --host 127.0.0.1 --port 8001
 ```
 
 In another terminal:
@@ -87,7 +114,7 @@ npm ci
 npm run dev
 ```
 
-Open [Pharmind](http://localhost:3000) to start in the workspace. Configure your model through **Model & connection** in the sidebar.
+Open [Pharmind Local](http://localhost:3001) to start in the workspace. Configure your model through **Model & connection** in the sidebar.
 
 ## Where your information lives
 
@@ -95,8 +122,8 @@ Open [Pharmind](http://localhost:3000) to start in the workspace. Configure your
 | --- | --- |
 | Conversations and notebooks | Browser local storage |
 | Connection and entered API key | This tab's session storage; clear with **Forget saved connection** |
-| Uploaded PDFs and extracted passages | Local backend data directory and ChromaDB |
-| Embedding and reranking models | `PHARMER_MODEL_CACHE`, default `backend/.cache` when run from the backend |
+| Uploaded PDFs and extracted passages | Docker: `pharmind-local_research-data`; without Docker: local backend data directory |
+| Embedding and reranking models | Docker: `pharmind-local_model-cache`; without Docker: `PHARMER_MODEL_CACHE`, default `backend/.cache` |
 | BYOK requests | Selected provider, via the local backend |
 
 Entered keys are not written to backend files, included in chat history, or returned by the connection test. Session storage is accessible to scripts on the app's origin; it is not an encrypted credential vault. Environment variables remain available for command-line workflows. Browser requests carry their own selected settings, independently of those variables.
