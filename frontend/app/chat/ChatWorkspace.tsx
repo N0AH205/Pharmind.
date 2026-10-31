@@ -640,7 +640,7 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
 
               {activePdf && (
                 <div className={styles.activePdfPill}>
-                  <span className={styles.activePdfIcon}>📄</span>
+
                   <span className={styles.activePdfName} title={activePdf.filename}>
                     Active Paper: <strong>{activePdf.filename}</strong> ({activePdf.pages}p)
                   </span>
@@ -758,7 +758,7 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
               <div className={styles.chatInputWrapper}>
                 {activePdf && (
                   <div className={styles.activePdfPill}>
-                    <span className={styles.activePdfIcon}>📄</span>
+
                     <span className={styles.activePdfName} title={activePdf.filename}>
                       Active Paper: <strong>{activePdf.filename}</strong> ({activePdf.pages}p)
                     </span>
@@ -875,14 +875,14 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
             </div>
           </dialog>
         )}
-        <MoleculeDrawerModal
+        {drawerOpen && <MoleculeDrawerModal
           isOpen={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           onApply={(smiles) => {
             setInputText(smiles);
             setChatMode("structure_science");
           }}
-        />
+        />}
         {compareModalOpen && drugInfos.length >= 2 && (
           <DrugComparisonModal
             candidates={drugInfos}

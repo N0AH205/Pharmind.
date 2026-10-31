@@ -66,46 +66,34 @@ function StatusPill({ status }: { status?: string | null }) {
   if (!status) return null;
   const st = status.toLowerCase();
   let className = styles.statusNotEvaluated;
-  let icon = "⚪";
 
   if (st === "reported") {
     className = styles.statusReported;
-    icon = "✓";
   } else if (st.includes("positive")) {
     className = styles.statusPositive;
-    icon = "⚠️";
   } else if (st.includes("negative")) {
     className = styles.statusNegative;
-    icon = "✓";
   } else if (st.includes("inconclusive")) {
     className = styles.statusInconclusive;
-    icon = "❓";
   } else if (st === "not found") {
     className = styles.statusNotFound;
-    icon = "⚪";
   } else if (st === "no evidence retrieved") {
     className = styles.statusNoEvidence;
-    icon = "○";
   } else if (st === "search incomplete") {
     className = styles.statusSearchIncomplete;
-    icon = "!";
   } else if (st === "answer not generated") {
     className = styles.statusAnswerNotGenerated;
-    icon = "…";
   } else if (st === "not reported") {
     className = styles.statusNotReported;
-    icon = "—";
   } else if (st === "unverified") {
     className = styles.statusUnverified;
-    icon = "?";
   } else if (st === "not applicable") {
     className = styles.statusNotApplicable;
-    icon = "—";
   }
 
   return (
     <span className={`${styles.statusPill} ${className}`}>
-      <span>{icon}</span> {status}
+      {status}
     </span>
   );
 }
@@ -509,96 +497,8 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
 
   return (
     <div className={`${styles.card} animate-fade-in-up`}>
-      {/* ── Header ── */}
       <div className={styles.header}>
-        <div className={styles.headerLeft}>
-          <div className={styles.drugIcon} aria-hidden="true">
-            💊
-          </div>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-              <h2 className={styles.genericName}>{genericName}</h2>
-              {data.data_confidence && (
-                <span
-                  className="badge"
-                  style={{
-                    background: data.data_confidence.includes("HIGH")
-                      ? "var(--blue)"
-                      : data.data_confidence.includes("MODERATE")
-                      ? "var(--bg-surface)"
-                      : "var(--blue)",
-                    color: data.data_confidence.includes("HIGH")
-                      ? "var(--slate)"
-                      : data.data_confidence.includes("MODERATE")
-                      ? "var(--slate)"
-                      : "var(--slate)",
-                    fontWeight: 700,
-                    fontSize: "0.72rem",
-                    padding: "3px 8px",
-                  }}
-                >
-                  {data.data_confidence}
-                </span>
-              )}
-            </div>
-
-            {data.data_confidence?.includes("Brief source-based overview") && (
-              <p className={styles.tabDescription}>
-                Direct source excerpts. Some passages are shortened; open the complete label for context. Ask a focused follow-up for an AI explanation.
-              </p>
-            )}
-            {brandNamesList.length > 0 && (
-              <div className={styles.brandChipsWrap}>
-                <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", alignSelf: "center" }}>
-                  Brands:
-                </span>
-                {brandNamesList.slice(0, 6).map((b, idx) => (
-                  <span key={idx} className={styles.brandChip}>
-                    {b.brand_name}
-                    {b.jurisdiction && (
-                      <span className={styles.brandJurisdiction}>{b.jurisdiction}</span>
-                    )}
-                  </span>
-                ))}
-                {brandNamesList.length > 6 && (
-                  <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", alignSelf: "center" }}>
-                    +{brandNamesList.length - 6} more
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className={styles.headerRight}>
-          <button
-            type="button"
-            className={styles.exportBtn}
-            onClick={handleExportMonograph}
-            title="Download complete monograph as GitHub Markdown"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Export Monograph
-          </button>
-
-          {data.query_smiles ? (
-            <div className={styles.smilesChip}>
-              <span className={styles.smilesChipLabel}>SMILES</span>
-              <code className={styles.smilesCode}>{data.query_smiles}</code>
-            </div>
-          ) : (
-            <div className={styles.smilesChip}>
-              <span className={styles.smilesChipLabel}>Modality</span>
-              <code className={styles.smilesCode}>
-                {(chemStruct.drug_type || "Biologic").replace(/_/g, " ")}
-              </code>
-            </div>
-          )}
-        </div>
+        <h2 className={styles.genericName}>{genericName}</h2>
       </div>
 
       {/* ── 6 Standard Monograph Tabs ── */}
@@ -662,7 +562,15 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
 
             {/* 1.1 Drug Identity */}
             <section className={styles.section}>
-              <SectionLabel number="1.1">Drug Identity</SectionLabel>
+              <div className={styles.identityHeading}>
+                <SectionLabel number="1.1">Drug Identity</SectionLabel>
+                <button type="button" className={styles.exportBtn} onClick={handleExportMonograph} title="Download this profile as Markdown">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+                  </svg>
+                  Export Monograph
+                </button>
+              </div>
               <table className={styles.metaTable}>
                 <tbody>
                   <tr>
@@ -682,6 +590,12 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
                       {data.drug_overview?.identity?.chemical_form?.content || "Parent compound"}
                     </td>
                   </tr>
+                  {brandNamesList.length > 0 && (
+                    <tr>
+                      <td className={styles.metaTableLabel}>Brand Names</td>
+                      <td className={styles.metaTableValue}>{brandNamesList.map(brand => brand.brand_name).join("; ")}</td>
+                    </tr>
+                  )}
                   {alternativeNamesList.length > 0 && (
                     <tr>
                       <td className={styles.metaTableLabel}>Alternative Names / Synonyms</td>
@@ -1257,7 +1171,6 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
               {hasBoxedWarning ? (
                 <div className={styles.boxedWarningCard}>
                   <div className={styles.boxedWarningHeader}>
-                    <span className={styles.boxedWarningIcon}>⚠️</span>
                     <h4 className={styles.boxedWarningTitle}>FDA Boxed Warning</h4>
                   </div>
                   <p className={styles.boxedWarningText}>{boxedWarning}</p>
@@ -1425,7 +1338,7 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
                 <div className={`${styles.regulatoryCard} ${styles.regulatoryCardFda}`}>
                   <div className={styles.regHeaderRow}>
                     <h4 className={styles.regJurisdictionTitle}>
-                      <span className={styles.regFlag}>🇺🇸</span> United States (US FDA)
+                      United States (US FDA)
                     </h4>
                     <span
                       className={`${styles.regStatusBadge} ${
@@ -1448,7 +1361,7 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
                 <div className={`${styles.regulatoryCard} ${styles.regulatoryCardBpom}`}>
                   <div className={styles.regHeaderRow}>
                     <h4 className={styles.regJurisdictionTitle}>
-                      <span className={styles.regFlag}>🇮🇩</span> Indonesia (BPOM RI)
+                      Indonesia (BPOM RI)
                     </h4>
                     <span
                       className={`${styles.regStatusBadge} ${
@@ -1513,7 +1426,7 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                       {tp.indications.investigational_uses.map((ind, i) => (
                         <span key={i} className="badge badge-subtle" style={{ padding: "4px 10px" }}>
-                          🔬 {ind.indication}
+                          {ind.indication}
                         </span>
                       ))}
                     </div>
@@ -1858,7 +1771,7 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
                               setActiveCitation(item.citation);
                             }}
                           >
-                            <span>📄</span> View Excerpt
+                            View Excerpt
                           </button>
                         ) : (
                           <span className={styles.resourceCardNoExcerpt}>External Record</span>

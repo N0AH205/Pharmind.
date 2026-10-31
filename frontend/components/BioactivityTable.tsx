@@ -17,7 +17,7 @@ export default function BioactivityTable({ bioactivities }: Props) {
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.title}>
-          <span>🎯 Measured Bioactivity Assays (ChEMBL Curated)</span>
+          <span>Measured Bioactivity Assays (ChEMBL Curated)</span>
           <span className={styles.countBadge}>{bioactivities.length} Assays</span>
         </div>
       </div>

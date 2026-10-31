@@ -56,7 +56,7 @@ function getExcretion(drug: DrugInfo): string {
 function getSafety(drug: DrugInfo): string {
   const boxed = drug.toxicology_and_safety?.clinical_safety?.boxed_warning?.content;
   if (boxed && !boxed.toLowerCase().startsWith("no boxed warning") && !boxed.toLowerCase().startsWith("none")) {
-    return `⚠️ Boxed Warning: ${boxed}`;
+    return `Boxed Warning: ${boxed}`;
   }
   return (
     drug.toxicology_and_safety?.clinical_safety?.warnings_and_precautions?.content ||
@@ -68,7 +68,7 @@ function getSafety(drug: DrugInfo): string {
 function getRegulatory(drug: DrugInfo): string {
   const us = drug.therapeutic_profile?.regulatory_status?.united_states?.status || "Not documented";
   const bpom = drug.therapeutic_profile?.regulatory_status?.indonesia?.status || "Not documented";
-  return `🇺🇸 US FDA: ${us} | 🇮🇩 BPOM: ${bpom}`;
+  return `US FDA: ${us} | BPOM: ${bpom}`;
 }
 
 export default function DrugComparisonModal({ leftDrug, rightDrug, onClose, candidates, leftIndex, rightIndex, onSelect }: Props) {
@@ -84,7 +84,7 @@ export default function DrugComparisonModal({ leftDrug, rightDrug, onClose, cand
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <div className={styles.titleGroup}>
-            <span className={styles.icon}>⚖️</span>
+
             <div>
               <h3 id="comparison-title" className={styles.title}>Comparative Pharmacology Analysis</h3>
               <p className={styles.subTitle}>

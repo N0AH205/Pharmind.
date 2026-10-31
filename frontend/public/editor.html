@@ -14,8 +14,30 @@
       overflow: hidden;
     }
     #jsme_container {
+      position: relative;
       width: 100%;
       height: 100%;
+    }
+    #jsme_container svg [stroke]:not([stroke="none"]) { stroke: #364652; }
+    #jsme_container svg [fill]:not([fill="none"]):not([fill="white"]):not([fill="rgb(238,241,242)"]) { fill: #364652; }
+    #jsme_container svg rect[fill="none"][stroke="rgb(64,64,64)"] { stroke: #cbd2d7; }
+    #jsme_container svg rect[fill="rgb(166,168,169)"] { fill: #c7dbe6 !important; }
+    /* The pinned editor uses a smiley for About. Keep its click target with a plain information label. */
+    #jsme_container::after {
+      content: "i";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      box-sizing: border-box;
+      border: 1px solid #cbd2d7;
+      background: #eef1f2;
+      color: #364652;
+      font: bold 14px Arial, sans-serif;
+      pointer-events: none;
     }
   </style>
   <script type="text/javascript">
@@ -24,21 +46,25 @@
       try {
         if (typeof JSApplet !== "undefined" && JSApplet.JSME) {
           jsmeApplet = new JSApplet.JSME("jsme_container", "100%", "100%", {
-            options: "smiles,star,polarnitro,query"
+            options: "newlook,smiles,star,polarnitro,noquery,nozoomgui",
+            guicolor: "#eef1f2",
+            guiAtomColor: "#364652"
           });
         } else if (typeof JSME !== "undefined") {
           jsmeApplet = new JSME("jsme_container", "100%", "100%", {
-            options: "smiles,star,polarnitro,query"
+            options: "newlook,smiles,star,polarnitro,noquery,nozoomgui",
+            guicolor: "#eef1f2",
+            guiAtomColor: "#364652"
           });
         }
         if (jsmeApplet) {
-          window.parent.postMessage({ type: "JSME_READY" }, window.location.origin);
           jsmeApplet.setCallBack("AfterStructureModified", function() {
             try {
               var smiles = jsmeApplet.smiles();
               window.parent.postMessage({ type: "JSME_SMILES", smiles: smiles }, window.location.origin);
             } catch(e) {}
           });
+          window.parent.postMessage({ type: "JSME_READY" }, window.location.origin);
         }
       } catch(err) {
         console.error("JSME init error:", err);
@@ -53,6 +79,7 @@
           } else {
             jsmeApplet.reset();
           }
+          window.parent.postMessage({ type: "JSME_SMILES", smiles: jsmeApplet.smiles() }, window.location.origin);
         } catch(err) {}
       }
     });

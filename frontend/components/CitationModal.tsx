@@ -21,7 +21,7 @@ export default function CitationModal({ citation, onClose }: Props) {
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <div className={styles.titleGroup}>
-            <span className={styles.icon}>📜</span>
+
             <div>
               <h3 id="citation-title" className={styles.title}>{citation.source}</h3>
               {citation.url && (

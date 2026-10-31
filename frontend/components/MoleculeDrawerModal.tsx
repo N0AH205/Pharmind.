@@ -25,6 +25,8 @@ export default function MoleculeDrawerModal({
   initialSmiles = "",
 }: Props) {
   const [currentSmiles, setCurrentSmiles] = useState(initialSmiles);
+  const [smilesDraft, setSmilesDraft] = useState(initialSmiles);
+  const [editorReady, setEditorReady] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   useEffect(() => { if (isOpen) dialogRef.current?.showModal(); }, [isOpen]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -34,17 +36,19 @@ export default function MoleculeDrawerModal({
     function handleMessage(event: MessageEvent) {
       if (event.origin === window.location.origin && event.source === iframeRef.current?.contentWindow && event.data?.type === "JSME_SMILES") {
         setCurrentSmiles(event.data.smiles || "");
+        setSmilesDraft(event.data.smiles || "");
       } else if (event.origin === window.location.origin && event.source === iframeRef.current?.contentWindow && event.data?.type === "JSME_READY") {
-        iframeRef.current?.contentWindow?.postMessage({ type: "SET_SMILES", smiles: currentSmiles }, window.location.origin);
+        setEditorReady(true);
+        iframeRef.current?.contentWindow?.postMessage({ type: "SET_SMILES", smiles: initialSmiles }, window.location.origin);
       }
     }
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [currentSmiles]);
+  }, [initialSmiles]);
 
   // Update JSME when initialSmiles or preset changes
   const loadSmilesIntoEditor = (smiles: string) => {
-    setCurrentSmiles(smiles);
+    setSmilesDraft(smiles);
     if (iframeRef.current && iframeRef.current.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
         { type: "SET_SMILES", smiles },
@@ -61,22 +65,9 @@ export default function MoleculeDrawerModal({
         {/* Header */}
         <div className={styles.header}>
           <div className={styles.headerTitleWrap}>
-            <div className={styles.headerIcon}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="3" />
-                <circle cx="4" cy="6" r="2" />
-                <circle cx="20" cy="6" r="2" />
-                <circle cx="4" cy="18" r="2" />
-                <circle cx="20" cy="18" r="2" />
-                <line x1="9.5" y1="10.5" x2="6" y2="7.5" />
-                <line x1="14.5" y1="10.5" x2="18" y2="7.5" />
-                <line x1="9.5" y1="13.5" x2="6" y2="16.5" />
-                <line x1="14.5" y1="13.5" x2="18" y2="16.5" />
-              </svg>
-            </div>
             <div>
-              <h3 id="structure-editor-title" className={styles.title}>Visual Structure Editor</h3>
-              <p className={styles.subtitle}>Draw chemical structures or load templates to generate SMILES</p>
+              <h3 id="structure-editor-title" className={styles.title}>Structure editor</h3>
+              <p className={styles.subtitle}>Draw a molecule, start from a template, or load a SMILES string.</p>
             </div>
           </div>
           <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close drawer">
@@ -90,12 +81,13 @@ export default function MoleculeDrawerModal({
         <div className={styles.body}>
           {/* Quick Presets */}
           <div className={styles.presetsBar}>
-            <span className={styles.presetsLabel}>Quick templates:</span>
+            <span className={styles.presetsLabel}>Start from a template</span>
             {PRESETS.map((p) => (
               <button
                 key={p.label}
                 type="button"
                 className={styles.presetBtn}
+                disabled={!editorReady}
                 onClick={() => loadSmilesIntoEditor(p.smiles)}
               >
                 {p.label}
@@ -105,13 +97,16 @@ export default function MoleculeDrawerModal({
               type="button"
               className={styles.presetBtn}
               onClick={() => loadSmilesIntoEditor("")}
-              style={{ marginLeft: "auto", color: "var(--color-error)" }}
+              disabled={!editorReady}
             >
-              Clear Canvas
+              Clear canvas
             </button>
           </div>
 
-          {/* JSME Canvas Container */}
+          <div className={styles.canvasHeading}>
+            <span>Drawing canvas</span>
+            <span role="status">{editorReady ? "Ready to draw" : "Loading editor…"}</span>
+          </div>
           <div className={styles.editorContainer}>
             <iframe
               ref={iframeRef}
@@ -121,18 +116,14 @@ export default function MoleculeDrawerModal({
             />
           </div>
 
-          {/* SMILES Preview Section */}
-          <div className={styles.previewSection}>
+          <form className={styles.previewSection} onSubmit={event => { event.preventDefault(); loadSmilesIntoEditor(smilesDraft); }}>
             <label className={styles.previewLabel} htmlFor="local-smiles">Molecular SMILES</label>
-            <input id="local-smiles" className="input-base" value={currentSmiles} onChange={event => loadSmilesIntoEditor(event.target.value)} />
-            <div className={styles.previewValue}>
-              {currentSmiles ? (
-                currentSmiles
-              ) : (
-                <span className={styles.previewEmpty}>Draw a chemical structure on the canvas above...</span>
-              )}
+            <div className={styles.smilesInputRow}>
+              <input id="local-smiles" className="input-base" value={smilesDraft} onChange={event => setSmilesDraft(event.target.value)} placeholder="Paste a SMILES string to load a structure" spellCheck={false} />
+              <button type="submit" className={styles.cancelBtn} disabled={!editorReady || !smilesDraft.trim()}>Load structure</button>
             </div>
-          </div>
+            <p className={styles.hint}>Choose a bond or atom, then click the canvas. Right-click for more drawing tools.</p>
+          </form>
         </div>
 
         {/* Footer */}
@@ -143,16 +134,13 @@ export default function MoleculeDrawerModal({
           <button
             type="button"
             className={styles.applyBtn}
-            disabled={!currentSmiles.trim()}
+            disabled={!editorReady || !currentSmiles.trim() || smilesDraft !== currentSmiles}
             onClick={() => {
               onApply(currentSmiles.trim());
               onClose();
             }}
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3.5 8.5l3 3 6-6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            Use Drawn SMILES
+            Use structure
           </button>
         </div>
       </div>
