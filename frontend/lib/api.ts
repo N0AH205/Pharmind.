@@ -1,4 +1,4 @@
-import { readEvents } from "./events";
+import { readEvents, STREAM_TRANSPORT_TIMEOUT_MS } from "./events";
 import { connectionHeaders } from "./connection";
 import type { ChatMode, QueryRequest, QueryResponse } from "./types";
 
@@ -29,16 +29,20 @@ export interface StreamCallbacks {
   onStatus?: (status: { stage: string; message: string }) => void;
   onToken?: (token: string) => void;
   onResult?: (data: any) => void;
+  onCheckpoint?: (data: any) => void;
+  onWarning?: (warning: string) => void;
   onError?: (error: string) => void;
 }
 
 export async function queryDrugStream(smiles: string, callbacks: StreamCallbacks, signal?: AbortSignal) {
+  const timeout = AbortSignal.timeout(STREAM_TRANSPORT_TIMEOUT_MS);
+  let finished = false;
   try {
     const res = await fetch(`${API_BASE}/query/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...connectionHeaders() },
       body: JSON.stringify({ smiles }),
-      signal: AbortSignal.any([...(signal ? [signal] : []), AbortSignal.timeout(15 * 60 * 1000)]),
+      signal: AbortSignal.any([...(signal ? [signal] : []), timeout]),
     });
 
     if (!res.ok || !res.body) {
@@ -46,16 +50,17 @@ export async function queryDrugStream(smiles: string, callbacks: StreamCallbacks
       return;
     }
 
-    let finished = false;
     await readEvents(res.body, event => {
       if (event.type === "status") callbacks.onStatus?.({ stage: event.stage, message: event.message });
       else if (event.type === "token") callbacks.onToken?.(event.content);
-      else if (event.type === "result") { finished = true; callbacks.onResult?.(event.data); }
-      else if (event.type === "error") { finished = true; callbacks.onError?.(event.message); }
+      else if (event.type === "checkpoint") callbacks.onCheckpoint?.(event.data);
+      else if (event.type === "warning") callbacks.onWarning?.(event.message);
+      else if (event.type === "result") { finished = true; callbacks.onResult?.(event.data); return false; }
+      else if (event.type === "error") { finished = true; callbacks.onError?.(event.message); return false; }
     });
-    if (!finished) callbacks.onError?.("The response ended before a complete profile arrived. Please retry.");
-  } catch (err: any) {
-    callbacks.onError?.(signal?.aborted ? "Request stopped." : err.name === "TimeoutError" ? "The model took too long. Try a smaller model or a shorter question." : err.message || "Network connection error");
+    if (!finished) callbacks.onError?.("The connection closed before research finished. Any saved initial profile is still available. Please retry the query.");
+  } catch (error) {
+    if (!finished) callbacks.onError?.(signal?.aborted ? "Request stopped." : timeout.aborted ? "Research exceeded its time limit. Try a smaller model. Any saved initial profile is still available." : error instanceof SyntaxError ? "The backend sent an incomplete research response. Any saved initial profile is still available." : "The connection to the local backend was interrupted. Check that Pharmind is still running. Any saved initial profile is still available.");
   }
 }
 
@@ -64,22 +69,30 @@ export async function sendChatMessage(
   history: { role: "user" | "assistant"; content: string }[] = [],
   activeDrug: { name: string; cid?: string } = { name: "" },
   mode: ChatMode = "structure_science",
-  options: { documentId?: string; signal?: AbortSignal } = {},
+  options: { documentId?: string; signal?: AbortSignal; onStatus?: (message: string) => void } = {},
 ) {
+  const timeout = AbortSignal.timeout(STREAM_TRANSPORT_TIMEOUT_MS);
   try {
     const res = await fetch(`${API_BASE}/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...connectionHeaders() },
       body: JSON.stringify({ question, history, active_drug: { name: activeDrug.name, cid: activeDrug.cid ?? null }, mode, document_id: options.documentId }),
-      signal: AbortSignal.any([...(options.signal ? [options.signal] : []), AbortSignal.timeout(5 * 60 * 1000)]),
+      signal: AbortSignal.any([...(options.signal ? [options.signal] : []), timeout]),
     });
     if (!res.ok) {
       return { success: false, error: await responseError(res) };
     }
-    return res.json();
+    if (!res.body) return { success: false, error: "The backend returned no answer stream." };
+    let result: any = null;
+    await readEvents(res.body, event => {
+      if (event.type === "status") options.onStatus?.(event.message);
+      if (event.type === "result") { result = event.data; return false; }
+      if (event.type === "error") { result = { success: false, error: event.message }; return false; }
+    });
+    return result || { success: false, error: "The connection closed before the answer was complete. Please retry your question." };
   } catch {
     if (options.signal?.aborted) return { success: false, error: "Request stopped." };
-    return { success: false, error: "Request failed or timed out. Could not reach the local backend. Start it and try again." };
+    return { success: false, error: timeout.aborted ? "Research exceeded its time limit. Try a smaller model or a more focused question." : "The connection to the local backend was interrupted. Check that Pharmind is still running and retry." };
   }
 }
 

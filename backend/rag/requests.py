@@ -2,6 +2,8 @@ import asyncio
 
 from fastapi import HTTPException, Request
 
+REQUEST_TIMEOUT_SECONDS = 15 * 60
+
 
 async def run_until_disconnect(request: Request, operation, timeout: float):
     """Cancel non-streaming model work when its local client disconnects."""

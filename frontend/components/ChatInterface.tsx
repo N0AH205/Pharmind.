@@ -88,6 +88,8 @@ export default function ChatInterface({ messages, loading, streamStatus }: Props
             </div>
           )}
 
+          {msg.role === "assistant" && msg.notice && <p className={styles.researchNotice} role="status">{msg.notice}</p>}
+
           {msg.role === "assistant" && msg.error && (
             <div className={styles.errorBubble}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">

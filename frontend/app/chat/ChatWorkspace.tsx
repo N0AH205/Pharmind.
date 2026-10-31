@@ -5,7 +5,7 @@ import Link from "next/link";
 import { getConnection, PROVIDERS } from "@/lib/connection";
 import type { ChatMessage, ChatMode, ChatSession, DrugInfo, ResearchDocument } from "@/lib/types";
 import { useBrowserReady } from "@/lib/useBrowserReady";
-import { mergeNotebooks, parseNotebookBackup, validateNotebooks } from "@/lib/notebooks";
+import { validateNotebooks } from "@/lib/notebooks";
 import { queryDrugStream } from "@/lib/api";
 import ChatInterface from "@/components/ChatInterface";
 import PDFDropzone from "@/components/PDFDropzone";
@@ -37,7 +37,7 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
       const raw = localStorage.getItem("pharmind_chat_sessions_v1");
       return { notebooks: raw ? validateNotebooks(JSON.parse(raw)) : [], error: "" };
     } catch {
-      return { notebooks: [], error: "Saved notebooks could not be read. Import a backup to recover them." };
+      return { notebooks: [], error: "Saved notebooks could not be read. The existing browser data has been left intact." };
     }
   });
   const [sessions, setSessions] = useState<ChatSession[]>(saved.notebooks);
@@ -47,7 +47,8 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatMode, setChatMode] = useState<ChatMode>(initialMode);
   const requestRef = useRef<AbortController | null>(null);
-  const backupInputRef = useRef<HTMLInputElement>(null);
+  const startedAtRef = useRef(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [storageNotice, setStorageNotice] = useState(saved.error);
   const [comparison, setComparison] = useState([0, 1]);
   const [loading, setLoading] = useState(false);
@@ -75,30 +76,16 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
     try {
       localStorage.setItem("pharmind_chat_sessions_v1", JSON.stringify(sessions));
     } catch {
-      queueMicrotask(() => setStorageNotice("Notebook storage is full or unavailable. Export a backup before closing this page."));
+      queueMicrotask(() => setStorageNotice("Notebook storage is full or unavailable. New messages may not be saved."));
     }
   }, [sessions, saved.error]);
 
   useEffect(() => () => requestRef.current?.abort(), []);
-
-  function exportNotebooks() {
-    const blob = new Blob([JSON.stringify({ format: "pharmind-notebooks", version: 1, notebooks: sessions }, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url; link.download = `pharmind-notebooks-${new Date().toISOString().slice(0, 10)}.json`; link.click();
-    URL.revokeObjectURL(url);
-    setStorageNotice("Notebook backup exported. PDFs and model settings are stored separately.");
-  }
-
-  async function importNotebooks(file?: File) {
-    if (!file) return;
-    try {
-      if (file.size > 20 * 1024 * 1024) throw new Error("Backups must be 20 MB or smaller.");
-      const imported = parseNotebookBackup(await file.text());
-      setSessions(current => mergeNotebooks(current, imported));
-      setStorageNotice(`Imported ${imported.length} notebooks. Paper links require the same local document library.`);
-    } catch (error) { setStorageNotice(error instanceof Error ? error.message : "Could not import this backup."); }
-  }
+  useEffect(() => {
+    if (!loading) return;
+    const timer = setInterval(() => setElapsedSeconds(Math.floor((Date.now() - startedAtRef.current) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [loading]);
 
   const drugInfos = messages.filter((m) => m.drugInfo).map((m) => m.drugInfo as DrugInfo);
   const hasStarted = messages.length > 0 || loading;
@@ -109,6 +96,8 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
     if (!trimmed) return;
     const controller = new AbortController();
     requestRef.current = controller;
+    startedAtRef.current = Date.now();
+    setElapsedSeconds(0);
 
     let currentSessionId = activeSessionIdRef.current;
     const isNewSession = !currentSessionId;
@@ -182,7 +171,15 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
       setLoading(true);
       setStreamStatus("Initializing local query...");
 
+      const assistantId = `assistant-${Date.now()}`;
+      const saveAssistant = (message: ChatMessage) => {
+        const upsert = (items: ChatMessage[]) => items.some(item => item.id === assistantId) ? items.map(item => item.id === assistantId ? message : item) : [...items, message];
+        if (activeSessionIdRef.current === currentSessionId) setMessages(upsert);
+        setSessions(current => current.map(session => session.id === currentSessionId ? { ...session, updatedAt: Date.now(), messages: upsert(session.messages), title: message.drugInfo?.drug_name?.generic || session.title } : session));
+      };
       let finalData: any = null;
+      let warning: string | undefined;
+      let hasCheckpoint = false;
       let errorMessage: string | null = null;
       let generatedCharacters = 0;
 
@@ -198,9 +195,13 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
             );
           }
         },
-        onResult: (data) => {
+        onCheckpoint: (data) => {
           finalData = data;
+          hasCheckpoint = true;
+          saveAssistant({ id: assistantId, role: "assistant", drugInfo: data, notice: "Initial profile saved. Additional evidence checks have not finished.", timestamp: new Date().toISOString() });
         },
+        onWarning: message => { warning = message; },
+        onResult: (data) => { finalData = data; },
         onError: (err) => {
           errorMessage = err;
         },
@@ -210,29 +211,12 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
       setLoading(false);
       setStreamStatus("");
 
-      const assistantMsg: ChatMessage = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        drugInfo: finalData || undefined,
-        error: errorMessage || (finalData ? undefined : "Network error — could not connect to local backend."),
+      saveAssistant({
+        id: assistantId, role: "assistant", drugInfo: finalData || undefined,
+        notice: warning || (errorMessage && hasCheckpoint ? "Initial profile saved. Additional evidence checks did not finish." : undefined),
+        error: errorMessage || (finalData ? undefined : "Research ended before a complete profile arrived. Please retry."),
         timestamp: new Date().toISOString(),
-      };
-
-      if (activeSessionIdRef.current === currentSessionId) {
-        setMessages((prev) => [...prev, assistantMsg]);
-      }
-      setSessions((prev) =>
-        prev.map((s) => {
-          if (s.id !== currentSessionId) return s;
-          const refinedTitle = finalData?.drug_name?.generic || s.title || titleCandidate;
-          return {
-            ...s,
-            title: refinedTitle,
-            updatedAt: Date.now(),
-            messages: [...s.messages, assistantMsg],
-          };
-        })
-      );
+      });
     } else {
 
       const userMsg: ChatMessage = {
@@ -293,7 +277,7 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
         : { name: "" };
 
       const { sendChatMessage } = await import("@/lib/api");
-      const res = await sendChatMessage(trimmed, history, activeDrug, chatMode, { documentId: activePdf?.document_id, signal: controller.signal });
+      const res = await sendChatMessage(trimmed, history, activeDrug, chatMode, { documentId: activePdf?.document_id, signal: controller.signal, onStatus: setStreamStatus });
 
       setLoading(false);
       setStreamStatus("");
@@ -532,11 +516,6 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
             <div className={styles.sectionHeader}>
               <span>YOUR NOTEBOOKS</span>
             </div>
-            <div className={styles.backupActions}>
-              <button type="button" onClick={exportNotebooks} disabled={!sessions.length}>Export</button>
-              <button type="button" onClick={() => backupInputRef.current?.click()} disabled={loading}>Import</button>
-              <input ref={backupInputRef} type="file" accept="application/json,.json" hidden onChange={event => { void importNotebooks(event.target.files?.[0]); event.target.value = ""; }} />
-            </div>
             <div className={styles.recentChatList}>
               {sessions.length === 0 ? (
                 <div className={styles.emptyRecent}>No saved research yet.</div>
@@ -634,7 +613,7 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
         </header>
         <OllamaConnectionNotice connection={connection} />
         {storageNotice && <div className={styles.workspaceNotice} role="status">{storageNotice}<button type="button" onClick={() => setStorageNotice("")} aria-label="Dismiss notice">×</button></div>}
-        {loading && <div className={styles.workspaceNotice} role="status"><span>{streamStatus || "Working…"}</span><button type="button" onClick={() => requestRef.current?.abort()}>Stop request</button></div>}
+        {loading && <div className={styles.workspaceNotice} role="status"><span>{streamStatus || "Working…"} · {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, "0")} elapsed</span><button type="button" onClick={() => requestRef.current?.abort()}>Stop request</button></div>}
         {!hasStarted ? (
           <div className={styles.emptyStateScroll}>
             <div className={styles.emptyHero}>

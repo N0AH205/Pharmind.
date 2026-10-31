@@ -26,7 +26,7 @@ from rag.query_builder import build_retrieval_query
 from ingest.local_chem import enrich_structure_local as enrich_structure
 from rag.connection_api import router as connection_router, model_connection_context, connection_validation_error
 
-from rag.requests import run_until_disconnect
+from rag.requests import run_until_disconnect, REQUEST_TIMEOUT_SECONDS
 from starlette.concurrency import run_in_threadpool
 
 app = FastAPI(
@@ -92,7 +92,7 @@ async def query_drug(req: QueryRequest, request: Request):
     """
     from rag.safety import ClinicalAdviceRefusal
     try:
-        result: DrugInfo = await run_until_disconnect(request, run_pipeline(req.smiles, debug=False), 900)
+        result: DrugInfo = await run_until_disconnect(request, run_pipeline(req.smiles, debug=False), REQUEST_TIMEOUT_SECONDS)
         return {"success": True, "data": result.model_dump()}
     except HTTPException:
         raise
@@ -117,31 +117,37 @@ class ChatRequest(BaseModel):
     active_drug: dict[str, str | None] = Field(default_factory=dict)
     mode: Literal["paper_learning", "structure_science", "molecule_theory"] = "structure_science"
 
-@app.post("/chat")
-async def chat_endpoint(req: ChatRequest, request: Request):
-    """
-    Conversational Q&A endpoint for follow-up questions and pharmacology discussion.
-    """
+async def chat_reply(req: ChatRequest):
     from rag.chat import answer_chat_question
     from rag.safety import check_query_safety
-    async def answer():
-        is_safe, refusal = await check_query_safety(req.question)
-        if not is_safe:
-            return {"success": True, "answer": refusal or "Patient-specific clinical advice is outside this research workspace.", "sources": []}
-        reply_answer, reply_sources = await answer_chat_question(
-            req.question, history=req.history, active_drug=req.active_drug,
-            mode=req.mode, document_id=req.document_id,
-        )
-        return {"success": True, "answer": reply_answer, "sources": reply_sources}
+    is_safe, refusal = await check_query_safety(req.question)
+    if not is_safe:
+        return {"success": True, "answer": refusal or "Patient-specific clinical advice is outside this research workspace.", "sources": []}
+    answer, sources = await answer_chat_question(req.question, history=req.history, active_drug=req.active_drug, mode=req.mode, document_id=req.document_id)
+    return {"success": True, "answer": answer, "sources": sources}
 
+
+@app.post("/chat")
+async def chat_endpoint(req: ChatRequest, request: Request):
+    from rag.streaming import research_error, TIMEOUT_MESSAGE
     try:
-        return await run_until_disconnect(request, answer(), 300)
+        return await run_until_disconnect(request, chat_reply(req), REQUEST_TIMEOUT_SECONDS)
     except HTTPException:
         raise
     except asyncio.TimeoutError:
-        return JSONResponse(status_code=504, content={"success": False, "error": "The model took too long. Try a shorter question or a smaller model."})
+        return JSONResponse(status_code=504, content={"success": False, "error": TIMEOUT_MESSAGE})
     except Exception as exc:
-        return JSONResponse(status_code=500, content={"success": False, "error": str(exc)})
+        return JSONResponse(status_code=500, content={"success": False, "error": research_error(exc)})
+
+
+@app.post("/chat/stream")
+async def chat_stream(req: ChatRequest):
+    from fastapi.responses import StreamingResponse
+    from rag.streaming import stream_events
+    async def events():
+        yield {"type": "status", "stage": "researching", "message": "Searching evidence and generating your answer..."}
+        yield {"type": "result", "data": await chat_reply(req)}
+    return StreamingResponse(stream_events(events()), media_type="text/event-stream", headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"})
 
 
 @app.post("/upload-pdf")
@@ -214,22 +220,9 @@ async def query_drug_stream(req: QueryRequest):
     Server-Sent Events (SSE) endpoint: streams status stages, tokens, and final DrugInfo JSON.
     """
     from fastapi.responses import StreamingResponse
-    import json
-
-    async def event_generator():
-        from rag.pipeline import run_pipeline_stream
-        async for event in run_pipeline_stream(req.smiles):
-            yield f"data: {json.dumps(event)}\n\n"
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
+    from rag.pipeline import run_pipeline_stream
+    from rag.streaming import stream_events
+    return StreamingResponse(stream_events(run_pipeline_stream(req.smiles)), media_type="text/event-stream", headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"})
 
 
 # ── Debug endpoints (not part of the public API contract) ─────────────────────

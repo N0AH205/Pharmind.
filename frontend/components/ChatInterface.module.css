@@ -370,3 +370,4 @@
 }
 .sourceCard { text-align: left; font: inherit; color: var(--ink); cursor: pointer; }
 .citationPill { font: inherit; cursor: pointer; }
+.researchNotice { color: var(--slate); font-size: 12px; line-height: 1.7; padding: 12px 0; }

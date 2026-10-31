@@ -492,6 +492,7 @@ export interface ChatSource {
 }
 
 export interface ChatMessage {
+  notice?: string;
   id: string;
   role: "user" | "assistant";
   smiles?: string;

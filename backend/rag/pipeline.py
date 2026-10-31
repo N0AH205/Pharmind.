@@ -10,6 +10,8 @@ alongside the normal DrugInfo — without polluting the public API schema.
 
 from __future__ import annotations
 
+import asyncio
+import copy
 import json
 import logging
 from pathlib import Path
@@ -1331,25 +1333,46 @@ async def run_pipeline_stream(smiles: str):
         ):
             accumulated_json.append(token)
             yield {"type": "token", "content": token}
-    except Exception as e:
-        yield {"type": "error", "message": f"LLM generation failed: {str(e)}"}
+    except Exception as exc:
+        from rag.streaming import research_error
+        yield {"type": "error", "message": research_error(exc)}
         return
 
     full_raw_str = "".join(accumulated_json)
     try:
         raw_dict = json.loads(full_raw_str)
     except json.JSONDecodeError:
-        raw_dict = await generate_structured_output(
-            system_prompt=system_prompt,
-            user_message=user_message,
-            output_schema=DrugInfo,
-        )
+        yield {"type": "status", "stage": "repairing", "message": "The model returned incomplete structured output. Retrying the profile format..."}
+        raw_dict = await generate_structured_output(system_prompt=system_prompt, user_message=user_message, output_schema=DrugInfo)
 
     raw_dict = resolve_field_citations(raw_dict, source_map)
-    yield {"type": "status", "stage": "evidence_review", "message": "Checking blank fields against the retrieved sources..."}
-    raw_dict = await fill_missing_fields_from_evidence(raw_dict, chunks, drug_name, search_failures)
-    raw_dict = enforce_resolved_drug_name(raw_dict, structure_data)
-    raw_dict = await enrich_deterministic_monograph_data(raw_dict, structure_data, chunks, drug_name)
+    initial_profile = None
+    try:
+        candidate = enforce_resolved_drug_name(copy.deepcopy(raw_dict), structure_data)
+        candidate["query_smiles"] = smiles
+        candidate["data_confidence"] = "UNASSESSED (Additional evidence checks incomplete)"
+        candidate["chemical_structure"] = {key: value for key, value in structure_data.items() if key in ChemicalStructure.model_fields}
+        initial_profile = DrugInfo(**candidate)
+    except (ValidationError, TypeError, ValueError):
+        pass
+    if initial_profile is not None:
+        yield {"type": "checkpoint", "data": initial_profile.model_dump()}
+
+    yield {"type": "status", "stage": "evidence_review", "message": "Checking additional evidence (up to two minutes). Any initial profile has been saved..."}
+
+    async def review():
+        reviewed = await fill_missing_fields_from_evidence(copy.deepcopy(raw_dict), chunks, drug_name, search_failures)
+        reviewed = enforce_resolved_drug_name(reviewed, structure_data)
+        return await enrich_deterministic_monograph_data(reviewed, structure_data, chunks, drug_name)
+
+    try:
+        raw_dict = await asyncio.wait_for(review(), timeout=120)
+    except Exception:
+        if initial_profile is None:
+            raise
+        yield {"type": "warning", "message": "Additional evidence checks did not finish. The saved initial profile is shown; some fields may be incomplete."}
+        yield {"type": "result", "data": initial_profile.model_dump()}
+        return
     raw_dict["chemical_structure"] = {
         **structure_data,
         "common_name": None,
