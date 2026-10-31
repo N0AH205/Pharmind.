@@ -178,12 +178,14 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
         setSessions(current => current.map(session => session.id === currentSessionId ? { ...session, updatedAt: Date.now(), messages: upsert(session.messages), title: message.drugInfo?.drug_name?.generic || session.title } : session));
       };
       let finalData: any = null;
+      let clarification: { message: string; suggestions: { query: string; label: string }[] } | undefined;
       let warning: string | undefined;
       let hasCheckpoint = false;
       let errorMessage: string | null = null;
       let generatedCharacters = 0;
 
       await queryDrugStream(trimmed, {
+        onClarification: data => { clarification = data; },
         onStatus: (status) => {
           setStreamStatus(status.message);
         },
@@ -191,7 +193,7 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
           generatedCharacters += fragment.length;
           if (generatedCharacters % 200 < fragment.length) {
             setStreamStatus(
-              `Generating structured profile… ${generatedCharacters.toLocaleString()} characters received`
+              `Preparing overview… ${generatedCharacters.toLocaleString()} characters received`
             );
           }
         },
@@ -213,8 +215,9 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
 
       saveAssistant({
         id: assistantId, role: "assistant", drugInfo: finalData || undefined,
+        text: clarification?.message, suggestions: clarification?.suggestions,
         notice: warning || (errorMessage && hasCheckpoint ? "Initial profile saved. Additional evidence checks did not finish." : undefined),
-        error: errorMessage || (finalData ? undefined : "Research ended before a complete profile arrived. Please retry."),
+        error: errorMessage || (finalData || clarification ? undefined : "Research ended before a complete profile arrived. Please retry."),
         timestamp: new Date().toISOString(),
       });
     } else {
@@ -749,7 +752,7 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
           /* Active Chat Workspace */
           <div className={styles.chatWorkspace}>
             <div className={styles.chatMessagesArea}>
-              <ChatInterface messages={messages} loading={loading} streamStatus={streamStatus} />
+              <ChatInterface messages={messages} loading={loading} streamStatus={streamStatus} onSuggestion={handleQuery} />
             </div>
             <div className={styles.chatInputBottomBar}>
               <div className={styles.chatInputWrapper}>

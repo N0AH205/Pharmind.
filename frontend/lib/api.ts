@@ -26,6 +26,7 @@ export async function queryDrug(smiles: string): Promise<QueryResponse> {
 }
 
 export interface StreamCallbacks {
+  onClarification?: (data: { message: string; suggestions: { query: string; label: string }[] }) => void;
   onStatus?: (status: { stage: string; message: string }) => void;
   onToken?: (token: string) => void;
   onResult?: (data: any) => void;
@@ -55,6 +56,7 @@ export async function queryDrugStream(smiles: string, callbacks: StreamCallbacks
       else if (event.type === "token") callbacks.onToken?.(event.content);
       else if (event.type === "checkpoint") callbacks.onCheckpoint?.(event.data);
       else if (event.type === "warning") callbacks.onWarning?.(event.message);
+      else if (event.type === "clarification") { finished = true; callbacks.onClarification?.(event); return false; }
       else if (event.type === "result") { finished = true; callbacks.onResult?.(event.data); return false; }
       else if (event.type === "error") { finished = true; callbacks.onError?.(event.message); return false; }
     });

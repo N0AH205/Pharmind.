@@ -49,6 +49,10 @@ _CLINICAL_TRIGGERS = [
 ]
 
 
+def looks_like_clinical_advice(query: str) -> bool:
+    return any(trigger in query.casefold() for trigger in _CLINICAL_TRIGGERS)
+
+
 async def check_query_safety(query: str) -> tuple[bool, str | None]:
     """
     Classify a user query to detect if it is seeking clinical advice.
@@ -60,6 +64,14 @@ async def check_query_safety(query: str) -> tuple[bool, str | None]:
     """
     trimmed = query.strip()
     if not trimmed:
+        return True, None
+
+    if looks_like_clinical_advice(trimmed):
+        return False, CLINICAL_ADVICE_DISCLAIMER
+
+    # A small local classifier can mistake ordinary mechanism questions for treatment advice.
+    # Reserve classification for questions that contain personal or recommendation cues.
+    if not re.search(r"\b(i|my|me|mine|patient|child|pregnant|should|recommend|prescribe|treat|dose|dosage|safe|safest|best)\b", trimmed, re.I):
         return True, None
 
     # If it is a purely alphanumeric string with no spaces (e.g. "aspirin" or "CC(=O)..."),
@@ -97,7 +109,7 @@ async def check_query_safety(query: str) -> tuple[bool, str | None]:
         logger.error(f"Error running safety classification: {e}")
         # Fallback to heuristic classification:
         lower_q = trimmed.lower()
-        if any(t in lower_q for t in _CLINICAL_TRIGGERS):
+        if looks_like_clinical_advice(lower_q):
             return False, f"Refusal: {CLINICAL_ADVICE_DISCLAIMER} (Triggered heuristic safety guardrail)"
 
     return True, None

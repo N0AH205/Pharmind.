@@ -523,6 +523,7 @@ class ClinicalTrialOutcomeItem(BaseModel):
 
 
 class TherapeuticProfileSection(BaseModel):
+    interaction_summary: Optional[FieldValue] = None
     indications: IndicationsCategories
     dosage_and_administration: DosageAndAdministration
     drug_interactions: list[DrugInteractionItem] = Field(default_factory=list)

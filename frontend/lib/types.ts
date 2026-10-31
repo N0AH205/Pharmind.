@@ -363,6 +363,7 @@ export interface ClinicalTrialOutcomeItem {
 }
 
 export interface TherapeuticProfileSection {
+  interaction_summary?: FieldValue;
   indications: IndicationsCategories;
   dosage_and_administration: DosageAndAdministration;
   drug_interactions: DrugInteractionItem[];
@@ -492,6 +493,7 @@ export interface ChatSource {
 }
 
 export interface ChatMessage {
+  suggestions?: { query: string; label: string }[];
   notice?: string;
   id: string;
   role: "user" | "assistant";

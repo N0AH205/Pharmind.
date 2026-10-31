@@ -24,23 +24,27 @@ _NS = "urn:hl7-org:v3"
 # LOINC section codes → our internal field keys
 # These are the standard codes used in FDA SPL documents.
 _LOINC_MAP: dict[str, str] = {
+    "34066-1": "boxed_warning",
     "34068-7": "dosage_and_administration",
     "34067-9": "indications",           # INDICATIONS AND USAGE SECTION
     "34070-3": "contraindications",     # CONTRAINDICATIONS SECTION
     "34071-1": "warnings",
     "34072-9": "precautions",
-    "34074-5": "use_in_specific_populations",
-    "34076-0": "overdosage",
-    "34077-8": "description",
-    "34080-2": "clinical_studies",
-    "34083-6": "how_supplied",
+    "43684-0": "use_in_specific_populations",
+    "34088-5": "overdosage",
+    "34089-3": "description",
+    "34092-7": "clinical_studies",
+    "34069-5": "how_supplied",
+    "43680-8": "nonclinical_toxicology",
+    "34083-6": "nonclinical_toxicology",
+    "43685-7": "warnings",
     "34084-4": "adverse_effects",       # ADVERSE REACTIONS SECTION
     "34073-7": "drug_interactions",     # DRUG INTERACTIONS SECTION
-    "34089-3": "clinical_pharmacology", # CLINICAL PHARMACOLOGY SECTION
     "43679-0": "mechanism_of_action",   # MECHANISM OF ACTION SECTION
     "43682-4": "pharmacokinetics",      # PHARMACOKINETICS SECTION
-    "34090-1": "clinical_pharmacology", # fallback: CLINICAL PHARMACOLOGY
-    "34092-7": "adverse_effects",       # POSTMARKET ADVERSE EFFECTS (fallback)
+    "34090-1": "clinical_pharmacology",
+    "43681-6": "pharmacodynamics",
+    "90375-7": "adverse_effects",
 }
 
 # Keyword fallback for displayName matching when code not in map
@@ -111,11 +115,9 @@ def _parse_spl_xml(xml_text: str) -> dict[str, str]:
         if not field_key:
             continue
 
-        # Extract all text from the section's <text> element
-        text_el = section_el.find(f"{{{_NS}}}text")
-        if text_el is None:
-            continue
-        text = _extract_text(text_el).strip()
+        # SPL parents often have no narrative of their own; the content lives in
+        # nested, unclassified subsections (including pharmacokinetics and interactions).
+        text = " ".join(_extract_text(text_el) for text_el in section_el.iter(f"{{{_NS}}}text")).strip()
         if not text:
             continue
 

@@ -56,6 +56,11 @@ _MISSING = FieldValue(
 )
 
 
+def has_verified_identity(structure: dict) -> bool:
+    return bool(structure.get("pubchem_cid") or structure.get("inchi_key") or structure.get("inchikey") or
+                any(str(source.get("source", "")).startswith("RxNorm Concept ") for source in structure.get("sources", [])))
+
+
 async def resolve_query_structure(query: str) -> dict:
     """Resolve arbitrary drug names/SMILES online when allowed, locally otherwise."""
     from ingest.local_chem import COMMON_DRUGS_DB, enrich_structure_local
@@ -1064,7 +1069,7 @@ async def run_pipeline(
     # Stage 1 — only this drug's chunks; Stage 2 — rank by semantic similarity.
     pubchem_cid = str(structure_data.get("pubchem_cid") or "")
     drug_name = str(structure_data.get("common_name") or structure_data.get("iupac_name") or "").strip()
-    if not pubchem_cid and not drug_name:
+    if not has_verified_identity(structure_data):
         raise ValueError("This compound has no local drug identity. Add a name mapping and indexed evidence before requesting a monograph.")
 
     # Refresh online reference sources on demand, even when a local profile exists.
@@ -1232,7 +1237,7 @@ async def run_pipeline_stream(smiles: str):
     retriever = await run_in_threadpool(get_retriever)
     pubchem_cid = str(structure_data.get("pubchem_cid") or "")
     drug_name = str(structure_data.get("common_name") or structure_data.get("iupac_name") or "").strip()
-    if not pubchem_cid and not drug_name:
+    if not has_verified_identity(structure_data):
         yield {"type": "error", "message": "This compound has no local drug identity. Add a name mapping and indexed evidence before requesting a monograph."}
         return
     if sources_enabled():

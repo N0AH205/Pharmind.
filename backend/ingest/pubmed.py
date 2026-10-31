@@ -10,6 +10,7 @@ API docs: https://www.ncbi.nlm.nih.gov/books/NBK25497/
 from __future__ import annotations
 
 import os
+import re
 import xml.etree.ElementTree as ET
 
 import httpx
@@ -17,6 +18,15 @@ from rag.config import require_network_allowed
 
 NCBI_API_KEY = os.getenv("NCBI_API_KEY", "")
 BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+
+
+def mentions_identity(text: str, aliases: list[str]) -> bool:
+    normalized = " " + re.sub(r"[^a-z0-9]+", " ", text.casefold()) + " "
+    for alias in aliases:
+        name = re.sub(r"[^a-z0-9]+", " ", alias.casefold()).strip()
+        if len(name) >= 3 and f" {name} " in normalized:
+            return True
+    return False
 
 
 async def search_pubmed(query: str, max_results: int = 20, raise_errors: bool = False) -> list[str]:

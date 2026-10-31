@@ -39,5 +39,5 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - run: python -m pip install -r requirements.txt
-      - run: python -m unittest scripts.test_connection scripts.test_documents scripts.test_requests -v
+      - run: python -m unittest scripts.test_connection scripts.test_documents scripts.test_requests scripts.test_lookup -v
       - run: python -m compileall -q rag ingest main.py

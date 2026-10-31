@@ -36,7 +36,7 @@ from rag.config import OFFLINE_MODE
 from ingest.pubchem import get_compound_by_cid, get_compound_by_smiles, get_pharmacology_text, get_pug_view_evidence, get_synonyms
 from ingest.chembl import fetch_chembl_profile, get_chembl_activity_evidence
 from ingest.dailymed import search_drug_labels, get_label_sections
-from ingest.pubmed import search_pubmed, fetch_abstracts
+from ingest.pubmed import search_pubmed, fetch_abstracts, mentions_identity
 from ingest.clinicaltrials import search_drug_trials
 
 CHROMA_PATH = os.getenv("CHROMA_PATH", "../data/chroma")
@@ -276,7 +276,7 @@ async def ingest_drug(drug: dict, collection, pubmed_limit: int | None = None) -
         pmids = await search_pubmed(query_str, max_results=result_limit)
         abstracts = await fetch_abstracts(pmids)
         for ab in abstracts:
-            if ab["abstract"] and ab["pmid"] not in seen_pmids:
+            if ab["abstract"] and ab["pmid"] not in seen_pmids and mentions_identity(f"{ab['title']} {ab['abstract']}", [name, canonical_name]):
                 seen_pmids.add(ab["pmid"])
                 chunks.append({
                     "text": f"{ab['title']}\n\n{ab['abstract']}",

@@ -217,6 +217,7 @@ function InfoBlock({
                   Conditions: {field.conditions}
                 </p>
               )}
+              <CitationBadge citations={field?.sources || []} onSelectCitation={onSelectCitation} />
             </div>
           )}
         </div>
@@ -380,6 +381,7 @@ export default function DrugInfoCard({ data }: Props) {
   const nonclinicalTox = tox?.nonclinical_toxicity;
   const boxedWarning = clinicalSafety?.boxed_warning?.content;
   const hasBoxedWarning =
+    !clinicalSafety?.boxed_warning?.missing &&
     boxedWarning &&
     !boxedWarning.toLowerCase().startsWith("no boxed warning") &&
     !boxedWarning.toLowerCase().startsWith("none");
@@ -540,6 +542,11 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
               )}
             </div>
 
+            {data.data_confidence?.includes("Brief source-based overview") && (
+              <p className={styles.tabDescription}>
+                Direct source excerpts. Some passages are shortened; open the complete label for context. Ask a focused follow-up for an AI explanation.
+              </p>
+            )}
             {brandNamesList.length > 0 && (
               <div className={styles.brandChipsWrap}>
                 <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", alignSelf: "center" }}>
@@ -897,11 +904,13 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
                       fontSize: "0.72rem",
                     }}
                   >
-                    Evidence: {pd?.mechanism_of_action?.evidence_classification || "Established"}
+                    Evidence: {pd?.mechanism_of_action?.evidence_classification || "Not evaluated"}
                   </span>
-                  <span className="badge badge-accent">
-                    {pd?.mechanism_of_action?.primary_vs_secondary || "Primary"} Mechanism
-                  </span>
+                  {pd?.mechanism_of_action?.primary_vs_secondary && (
+                    <span className="badge badge-accent">
+                      {pd.mechanism_of_action.primary_vs_secondary} Mechanism
+                    </span>
+                  )}
                 </div>
                 <div className={styles.infoBlockContent}>
                   {(pd?.mechanism_of_action?.content || "Mechanism of action details not retrieved.")
@@ -915,6 +924,7 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
                         <br key={i} />
                       )
                     )}
+                  <CitationBadge citations={pd?.mechanism_of_action?.sources || []} onSelectCitation={setActiveCitation} />
                 </div>
               </div>
             </section>
@@ -1009,7 +1019,7 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
                       fontWeight: 700,
                     }}
                   >
-                    {pd?.clinical_relevance_of_concentrations?.clinical_relevance || "Assessed"}
+                    {pd?.clinical_relevance_of_concentrations?.clinical_relevance || "Not evaluated"}
                   </span>
                 </div>
                 <p className={styles.contentLine}>
@@ -1254,7 +1264,7 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
                 </div>
               ) : (
                 <div className={styles.noWarningCard}>
-                  <span>✓</span> No regulatory Boxed Warning indicated for this compound.
+                  Boxed warning not verified in this overview. Consult the complete label.
                 </div>
               )}
 
@@ -1462,6 +1472,7 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
             {/* 5.1 Indications */}
             <section className={styles.section}>
               <SectionLabel number="5.1">Indications & Clinical Uses</SectionLabel>
+              {tp?.indications?.summary && <InfoBlock label="Reported uses" field={tp.indications.summary} slug="reported_uses" onSelectCitation={setActiveCitation} />}
 
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {tp?.indications?.approved_indications && tp.indications.approved_indications.length > 0 && (
@@ -1535,6 +1546,7 @@ ${trials.length > 0 ? trials.map((tr) => `- **${tr.study}**: ${tr.population} | 
             {/* 5.3 Drug Interactions */}
             <section className={styles.section}>
               <SectionLabel number="5.3">Drug Interactions</SectionLabel>
+              {tp?.interaction_summary && <InfoBlock label="Reported interactions" field={tp.interaction_summary} slug="interaction_summary" onSelectCitation={setActiveCitation} />}
               {interactions.length > 0 ? (
                 <div className={styles.tableWrapper}>
                   <table className={styles.dataTable}>

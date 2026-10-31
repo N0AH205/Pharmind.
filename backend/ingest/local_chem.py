@@ -151,6 +151,14 @@ COMMON_DRUGS_DB: dict[str, dict[str, Any]] = {
     },
 }
 
+# Verified PubChem CID 5556; keep the established brand separate from fuzzy spellings.
+COMMON_DRUGS_DB["triazolam"] = {
+    "common_name": "Triazolam", "synonyms": ["Halcion"], "pubchem_cid": 5556,
+    "smiles": "CC1=NN=C2N1C3=C(C=C(C=C3)Cl)C(=NC2)C4=CC=CC=C4Cl",
+}
+COMMON_DRUGS_DB["halcion"] = COMMON_DRUGS_DB["triazolam"]
+COMMON_DRUGS_DB["5556"] = COMMON_DRUGS_DB["triazolam"]
+
 
 def generate_svg_data_uri(mol: Chem.Mol) -> str:
     """Generate an inline SVG data URI for an RDKit Mol object."""

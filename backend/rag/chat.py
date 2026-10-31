@@ -148,12 +148,14 @@ async def answer_chat_question(
         # Search live for the user's actual question; the local index may not
         # contain recent or narrowly scoped papers for this topic.
         try:
-            from ingest.pubmed import fetch_abstracts, search_pubmed
+            from ingest.pubmed import fetch_abstracts, search_pubmed, mentions_identity
 
             search_terms = f"{drug_name} {question}" if drug_name != "unspecified compound" else question
             pmids = await search_pubmed(search_terms, max_results=8)
             for article in await fetch_abstracts(pmids):
                 if not article.get("abstract"):
+                    continue
+                if drug_name != "unspecified compound" and not mentions_identity(f"{article.get('title', '')} {article['abstract']}", [drug_name]):
                     continue
                 online_chunks.append({
                     "text": f"{article.get('title', '')}\n\n{article['abstract']}",

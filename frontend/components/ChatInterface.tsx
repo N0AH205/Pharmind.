@@ -8,12 +8,13 @@ import { normalizeChatCitations } from "@/lib/citations";
 import styles from "./ChatInterface.module.css";
 
 interface Props {
+  onSuggestion?: (query: string) => void;
   messages: ChatMessage[];
   loading: boolean;
   streamStatus?: string;
 }
 
-export default function ChatInterface({ messages, loading, streamStatus }: Props) {
+export default function ChatInterface({ messages, loading, streamStatus, onSuggestion }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -89,6 +90,7 @@ export default function ChatInterface({ messages, loading, streamStatus }: Props
           )}
 
           {msg.role === "assistant" && msg.notice && <p className={styles.researchNotice} role="status">{msg.notice}</p>}
+          {msg.role === "assistant" && !!msg.suggestions?.length && <div className={styles.suggestions}>{msg.suggestions.map(suggestion => <button type="button" key={suggestion.query} disabled={loading} onClick={() => onSuggestion?.(suggestion.query)}>Search {suggestion.label}</button>)}</div>}
 
           {msg.role === "assistant" && msg.error && (
             <div className={styles.errorBubble}>

@@ -29,7 +29,7 @@ async def stream_events(events, timeout=REQUEST_TIMEOUT_SECONDS, heartbeat=10):
         try:
             async with aclosing(events) as iterator:
                 async for event in iterator:
-                    terminal = event.get("type") in {"result", "error"}
+                    terminal = event.get("type") in {"result", "error", "clarification"}
                     await queue.put(event)
                     if terminal:
                         return
@@ -53,7 +53,7 @@ async def stream_events(events, timeout=REQUEST_TIMEOUT_SECONDS, heartbeat=10):
                 yield ": keep-alive\n\n"
                 continue
             yield f"data: {json.dumps(event)}\n\n"
-            if event.get("type") in {"result", "error"}:
+            if event.get("type") in {"result", "error", "clarification"}:
                 return
     finally:
         task.cancel()

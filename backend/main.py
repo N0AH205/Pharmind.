@@ -85,14 +85,19 @@ async def local_readiness():
 @app.post("/query", response_model=None)
 async def query_drug(req: QueryRequest, request: Request):
     """
-    Accept a SMILES string and return a structured DrugInfo object.
-
-    Flow: SMILES → Local RDKit → ChromaDB → Qwen (Ollama) → Pydantic → JSON
-    Missing evidence is reported explicitly.
+    Resolve a compound and return a brief source-based overview.
     """
     from rag.safety import ClinicalAdviceRefusal
     try:
-        result: DrugInfo = await run_until_disconnect(request, run_pipeline(req.smiles, debug=False), REQUEST_TIMEOUT_SECONDS)
+        from rag.lookup import lookup_stream
+        async def overview():
+            async for event in lookup_stream(req.smiles):
+                if event["type"] == "result":
+                    return DrugInfo(**event["data"])
+                if event["type"] in {"clarification", "error"}:
+                    raise HTTPException(status_code=422, detail=event["message"])
+            raise HTTPException(status_code=502, detail="The lookup ended before an overview was returned.")
+        result: DrugInfo = await run_until_disconnect(request, overview(), 120)
         return {"success": True, "data": result.model_dump()}
     except HTTPException:
         raise
@@ -220,9 +225,9 @@ async def query_drug_stream(req: QueryRequest):
     Server-Sent Events (SSE) endpoint: streams status stages, tokens, and final DrugInfo JSON.
     """
     from fastapi.responses import StreamingResponse
-    from rag.pipeline import run_pipeline_stream
+    from rag.lookup import lookup_stream
     from rag.streaming import stream_events
-    return StreamingResponse(stream_events(run_pipeline_stream(req.smiles)), media_type="text/event-stream", headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"})
+    return StreamingResponse(stream_events(lookup_stream(req.smiles)), media_type="text/event-stream", headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"})
 
 
 # ── Debug endpoints (not part of the public API contract) ─────────────────────

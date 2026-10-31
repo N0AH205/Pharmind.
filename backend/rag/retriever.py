@@ -133,7 +133,12 @@ class Retriever:
 
         # Combine drug identity and source-field filters so a section can
         # directly search the matching DailyMed/PubMed categories.
-        filters: list[dict] = []
+        # Older automatic imports could assign an unresolved name to unrelated abstracts.
+        # User-tagged PDFs remain available; unidentified automatic records need verification.
+        filters: list[dict] = [{"$or": [
+            {"$and": [{"pubchem_cid": {"$ne": ""}}, {"pubchem_cid": {"$ne": "custom"}}]},
+            {"field": "research"}, {"identity_verified": True},
+        ]}]
         if document_id:
             filters.append({"$or": [{"document_id": document_id}, {"doc_id": document_id}]})
         elif pubchem_cid and pubchem_cid.isdigit():

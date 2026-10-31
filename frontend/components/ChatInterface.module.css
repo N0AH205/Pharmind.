@@ -371,3 +371,6 @@
 .sourceCard { text-align: left; font: inherit; color: var(--ink); cursor: pointer; }
 .citationPill { font: inherit; cursor: pointer; }
 .researchNotice { color: var(--slate); font-size: 12px; line-height: 1.7; padding: 12px 0; }
+.suggestions { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+.suggestions button { background: transparent; color: var(--slate); border: 1px solid var(--steel); padding: 9px 13px; font: inherit; cursor: pointer; }
+.suggestions button:hover { background: var(--blue); }

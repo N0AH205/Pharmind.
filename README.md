@@ -138,19 +138,19 @@ The structure editor is bundled and served locally, including its templates. It 
 
 - **Paper learning:** Upload a text-based PDF (up to 20 MB and 500 pages), or choose **Use paper** from the document library. Answers search only the selected document. Its selection is saved with the notebook. Unlink it to return to broader research.
 - **Document library:** Originals are saved locally and can be viewed from the library or a citation. Identical uploads with the same compound tag are deduplicated. Different files with the same filename stay separate. Choose **Replace** before uploading an updated PDF to remove the old passages and original file. Deleting a paper clears its notebook selections; existing answers remain in your notebooks.
-- **Structure & science:** Enter a compound name or SMILES to explore structures and grounded profiles. Offline name resolution depends on locally available records; import literature or use SMILES when a compound is unavailable.
+- **Structure & science:** Enter a compound name, CID, or SMILES. The initial profile displays direct excerpts from matched DailyMed labels, with source links; it does not wait for AI to generate a full monograph. Unverified names require clarification, with spelling suggestions when available. Online identity resolution has a 12-second budget and label/paper searches share a 15-second budget. Offline lookup uses known identities and indexed evidence. Unchecked fields are marked explicitly. Ask focused follow-up questions for model-generated explanations or details from papers.
 - **Molecule theory:** Ask about mechanisms, interactions, and structure–activity relationships.
 - **Notebooks:** Conversations are saved in this browser and can be reopened or deleted from the sidebar. Clearing browser storage removes notebooks. PDFs and their index live separately in the research-data volume.
 - **References:** Inline references open retrieved passages and PDF pages. Passages consulted by a model that supplied no valid citation markers are labelled separately from claim citations.
 - **Comparisons:** Choose any two profiles from the current notebook. Missing regulatory or safety evidence is shown as unavailable.
-- **Long requests:** Use **Stop request** to cancel a model request. Both chat and structured profiles send keep-alive messages while waiting, show elapsed time, and have a fifteen-minute backend deadline. When a schema-valid initial profile is available, it is saved and displayed before additional evidence checks; those checks have a two-minute budget. If the connection or later checks fail, the initial profile remains available with an incomplete-review notice. PDF indexing runs in a worker thread and finishes independently if the library is closed.
+- **Long requests:** Use **Stop request** to cancel. Requests send keep-alive messages while waiting and show elapsed time. Initial compound profiles use bounded source searches and do not call the model. Follow-up chat still has a fifteen-minute backend deadline and depends on your model and hardware. PDF indexing runs in a worker thread and finishes independently if the library is closed.
 
 In **Model & connection**, use **Check local readiness** to check the embedding cache and document count. **Test connection** checks your chosen inference model separately. A cached reranker is optional; without it, results use vector ranking.
 
 ## Current limits
 
 - Scanned and image-only PDFs require OCR before upload. Equations, complex tables, and multi-column layouts can lose structure during text extraction.
-- Ordinary chat sends progress and keep-alive messages; its answer text arrives when generation completes. Structured profiles stream progress and local Ollama tokens; cloud structured responses currently arrive as one completed model response.
+- Ordinary chat sends progress and keep-alive messages; its answer text arrives when generation completes. Initial profiles show source excerpts, which may be shortened and do not replace the complete label. When only papers are available, they appear as references; they are not automatically presented as established clinical facts. Older automatic imports without verified compound identity are excluded from retrieval; uploaded PDFs remain available.
 - Older indexed PDFs may lack original files. Re-upload them to enable PDF viewing. Browser notebooks do not reconstruct the document library.
 - Small-model scientific accuracy and citation support still require broader evaluation. Passing software tests does not establish clinical reliability.
 - Chroma is used as an embedded local database, with no Chroma HTTP server. The latest available package still has upstream server authorization/code-injection advisories with no published fixed version at this check. Those server endpoints are not exposed by this application; keep this a loopback-only, single-user installation and monitor upstream fixes.
@@ -167,11 +167,11 @@ npm run build
 
 ```sh
 cd backend
-python -m unittest scripts.test_connection scripts.test_documents scripts.test_requests -v
+python -m unittest scripts.test_connection scripts.test_documents scripts.test_requests scripts.test_lookup -v
 python -m compileall -q rag ingest main.py
 ```
 
-Tests cover provider isolation and credential redaction, document isolation, real PDF extraction into a temporary Chroma collection, replacement/deletion, original PDF serving, citation preservation, disconnect cancellation, readiness, saved-notebook validation, stream parsing, keep-alives, and terminal stream errors. Providers and embeddings are mocked; these checks need no real keys, downloaded models, or running Ollama. GitHub Actions runs lint, types, frontend tests/build, and offline backend tests on pushes and pull requests.
+Tests cover provider isolation and credential redaction, document isolation, real PDF extraction into a temporary Chroma collection, replacement/deletion, original PDF serving, citation preservation, disconnect cancellation, readiness, unresolved-name clarification, source-excerpt preservation, exclusion of unverified automatic imports, saved-notebook validation, stream parsing, keep-alives, and terminal stream errors. Providers and embeddings are mocked; these checks need no real keys, downloaded models, or running Ollama. GitHub Actions runs lint, types, frontend tests/build, and offline backend tests on pushes and pull requests.
 
 ## License
 

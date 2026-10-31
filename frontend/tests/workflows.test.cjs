@@ -114,3 +114,13 @@ test("backend timeout remains a timeout instead of becoming a network error", as
   await queryDrugStream("Test", { onError: error => errors.push(error) });
   assert.deepEqual(errors, ["Research reached its 15-minute limit."]);
 });
+
+test("identity clarification finishes the stream with a selectable suggestion", async t => {
+  const clarification = { type: "clarification", message: "Confirm the compound", suggestions: [{ query: "Triazolam", label: "Triazolam (halcion)" }] };
+  t.mock.method(globalThis, "fetch", async () => new Response(`data: ${JSON.stringify(clarification)}\n\ndata: invalid\n\n`));
+  const received = [];
+  const errors = [];
+  await queryDrugStream("halicon", { onClarification: value => received.push(value), onError: error => errors.push(error) });
+  assert.equal(received[0].suggestions[0].query, "Triazolam");
+  assert.deepEqual(errors, []);
+});
