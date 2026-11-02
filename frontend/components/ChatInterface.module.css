@@ -76,51 +76,20 @@
   box-shadow: none;
 }
 
-.proseParagraph {
-  margin: 0 0 14px 0;
-  font-size: 0.93rem;
-  line-height: 1.7;
-  color: var(--ink);
-}
-
-.proseParagraph:last-of-type {
-  margin-bottom: 0;
-}
-
-.proseBulletItem {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin: 0 0 10px 0;
-  font-size: 0.93rem;
-  line-height: 1.7;
-  color: var(--ink);
-}
-
-.bulletDot {
-  color: var(--slate);
-  font-size: 1.1rem;
-  line-height: 1.4;
-  flex-shrink: 0;
-}
-
-.proseHeading {
-  margin: 18px 0 8px 0;
-  font-size: 0.98rem;
-  font-weight: 700;
-  color: var(--ink);
-  letter-spacing: -0.01em;
-  line-height: 1.4;
-}
-
-.proseHeading:first-child {
-  margin-top: 0;
-}
-
-.proseBold {
-  font-weight: 650;
-  color: var(--ink);
-}
+.prose { font-size: .93rem; line-height: 1.7; color: var(--ink); overflow-wrap: anywhere; }
+.prose p { margin: 0 0 14px; }
+.prose h4 { margin: 18px 0 8px; font-size: .98rem; line-height: 1.4; font-weight: 700; }
+.prose h4:first-child { margin-top: 0; }
+.prose ul, .prose ol { margin: 0 0 16px; padding-left: 24px; }
+.prose ul { list-style: disc; }
+.prose ol { list-style: decimal; }
+.prose li { padding-left: 4px; margin: 0 0 8px; }
+.prose li > p { margin-bottom: 6px; }
+.prose li > ul, .prose li > ol { margin: 6px 0; }
+.prose strong { font-weight: 650; }
+.prose blockquote { border-left: 2px solid var(--steel); padding-left: 16px; margin: 0 0 14px; color: var(--slate); }
+.prose pre { white-space: pre-wrap; background: var(--bg-elevated); padding: 12px; margin: 0 0 14px; }
+.prose > :last-child { margin-bottom: 0; }
 
 /* ── Inline source references ── */
 .citationGroup {

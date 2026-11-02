@@ -150,7 +150,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 14px 16px;
+  gap: 16px;
   border: 1px solid var(--border-color, var(--bg-elevated));
   background: var(--bg-surface, var(--bg-surface));
   border-radius: 3px;
@@ -164,25 +165,35 @@
 .paperInfo {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
 }
 
 .paperName {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 400;
   color: var(--text-primary, var(--ink));
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 240px;
+  overflow-wrap: anywhere;
 }
 
 .paperMeta {
   font-size: 0.7rem;
   color: var(--text-muted, var(--slate));
-  display: flex;
-  gap: 8px;
+  line-height: 1.5;
+}
+
+.paperActions { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+.pdfLink, .usePaperBtn, .deleteBtn { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: .78rem; line-height: 1.4; }
+.pdfLink { color: var(--slate); font-weight: 500; text-decoration: none; white-space: nowrap; }
+.pdfLink:hover { text-decoration: underline; text-underline-offset: 3px; }
+.usePaperBtn { border: 1px solid var(--border-muted); border-radius: 3px; padding: 8px 12px; background: transparent; color: var(--slate); font-weight: 600; white-space: nowrap; }
+.usePaperBtn:hover:not(:disabled) { background: var(--bg-elevated); border-color: var(--slate); }
+
+@media (max-width: 600px) {
+  .paperItem { flex-direction: column; align-items: stretch; gap: 12px; }
+  .paperActions { flex-wrap: wrap; }
+  .paperActions .deleteBtn { margin-left: auto; }
 }
 
 .deleteBtn {
@@ -192,7 +203,6 @@
   cursor: pointer;
   padding: 4px 6px;
   border-radius: 4px;
-  font-size: 0.8rem;
   transition: background 0.15s ease;
 }
 

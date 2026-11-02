@@ -45,7 +45,7 @@ Format and Structure Guidelines:
 - NEVER put bullet points on section headings (avoid '•**Heading:*' or '• **Heading**').
 - NEVER output raw URLs or markdown links such as '[SOURCE_1](https://...)' or '[1](https://...)'. Use ONLY plain citation brackets like '[SOURCE_1]' or '[SOURCE_1, SOURCE_2]'. Source links are rendered automatically by the UI.
 - Ensure all bold text has properly matched pairs of double asterisks ('**bold**'). Avoid broken asterisks like '**text:*'.
-- When writing bullet points, ensure there is a space after the bullet (e.g. '• Point' or '- Point').
+- Use standard Markdown lists: '- Item' for bullets and '1. Item' for numbered lists. Put every item on its own line, with a blank line before and after the list. Indent nested lists; never combine all items in one paragraph.
 - Do not enclose common medical terms in unnecessary quotation marks.
 
 {mode_guidance}
@@ -77,40 +77,8 @@ def _clean_source_name(chunk: dict) -> str:
 
 
 def _sanitize_chat_formatting(text: str) -> str:
-    """Sanitize and normalize formatting quirks (unbalanced asterisks, bullet-headers, raw URLs)."""
-    # 2. Convert bullet-heading hybrids like •**Heading:* or • **Heading:** or **Heading:* into clean markdown headings
-    def _clean_heading(m: re.Match) -> str:
-        title = m.group(1).strip().rstrip(":").rstrip("*").strip()
-        return f"\n\n### {title}\n\n"
-
-    text = re.sub(
-        r"(?:^|\n)\s*[•*-]?\s*\*\*+([^*\n]+?)(?:\*+:|\*+|\*\*|:\*)\s*(?=\n|$)",
-        _clean_heading,
-        text,
-    )
-
-    # 3. Clean trailing colons on markdown headings
-    text = re.sub(r"(?:^|\n)\s*###\s+([^\n]+?):+\s*(?=\n|$)", r"\n\n### \1\n\n", text)
-
-    # 4. Fix malformed bold headers like **Heading:* or **Heading*: -> **Heading:**
-    text = re.sub(r"\*\*([^*\n]+?)\*:", r"**\1:**", text)
-    text = re.sub(r"\*\*([^*\n]+?):\*", r"**\1:**", text)
-
-    # 5. Ensure double newlines before bullets and headings for clean paragraph separation
-    text = re.sub(r"([^\n])\n\s*([•*-]\s+)", r"\1\n\n\2", text)
-    text = re.sub(r"([^\n])\n\s*(###\s+)", r"\1\n\n\2", text)
-
-    # 6. Normalize bullets: ensure bullets have a following space
-    text = re.sub(r"(?:^|\n)\s*[•]\s*([^\s\n•])", r"\n• \1", text)
-    text = re.sub(r"(?:^|\n)\s*[-]\s+([^\s\n\-])", r"\n• \1", text)
-
-    # 7. Fix punctuation spacing from stripped citations (e.g. "stimulant ." -> "stimulant.")
-    text = re.sub(r"\s+([.,;:!?])", r"\1", text)
-    text = re.sub(r"[ \t]{2,}", " ", text)
-
-    # 8. Clean trailing redundant blank lines
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
+    # Preserve Markdown line breaks and indentation; whitespace before punctuation is cosmetic.
+    return re.sub(r"[ \t]+([.,;:!?])", r"\1", text.replace("\r\n", "\n")).strip()
 
 
 async def answer_chat_question(

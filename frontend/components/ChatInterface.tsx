@@ -4,6 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import type { ChatMessage, ChatSource } from "@/lib/types";
 import DrugInfoCard from "./DrugInfoCard";
 import CitationModal from "./CitationModal";
+import FormattedProse from "./FormattedProse";
 import { normalizeChatCitations } from "@/lib/citations";
 import styles from "./ChatInterface.module.css";
 
@@ -162,101 +163,6 @@ function getSourceMeta(url: string, name?: string): { tag: string; label: string
   return { tag: "Literature", label: name || "Scientific Literature Reference" };
 }
 
-
-function renderInlineWithFormatting(str: string, baseKey: string) {
-  const chunks = str.split(/(\*\*[^*\n]+\*\*)/g);
-  return chunks.map((chunk, cIdx) => {
-    if (chunk.startsWith("**") && chunk.endsWith("**") && chunk.length > 4) {
-      return (
-        <strong key={`${baseKey}-b-${cIdx}`} className={styles.proseBold}>
-          {chunk.slice(2, -2)}
-        </strong>
-      );
-    }
-    return <span key={`${baseKey}-t-${cIdx}`}>{chunk}</span>;
-  });
-}
-
-function FormattedProse({
-  text,
-  sources,
-  onSource,
-}: {
-  text: string;
-  sources: ChatSource[];
-  onSource: (source: ChatSource) => void;
-}) {
-  const normalizedText = text
-    .replace(/(?:^|\n)\s*[•*-]\s*\*\*+([^*\n]+?)(?:\*+:|\*+|\*\*|:\*)\s*(?=\n|$)/g, "\n\n### $1\n\n")
-    .replace(/([^\n])\s*([*•-])\s+(\*\*|[A-Z])/g, "$1\n\n$2 $3")
-    .replace(/(?:^|\n)\s*[•]\s*([^\s•\n])/g, "\n• $1")
-    .replace(/\n{3,}/g, "\n\n");
-
-  const paragraphs = normalizedText.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
-
-  const renderSegment = (segText: string, pIdx: number) => {
-    const parts = segText.split(/(\[\s*\d+(?:\s*,\s*\d+)*\s*\](?:\([^)]*\))?)/g);
-
-    return parts.map((part, idx) => {
-      const match = part.match(/^\[\s*(\d+(?:\s*,\s*\d+)*)\s*\](?:\(([^)]*)\))?$/);
-      if (match) {
-        const nums = match[1]
-          .split(",")
-          .map((n) => parseInt(n.trim(), 10))
-          .filter((n) => !isNaN(n));
-        const inlineUrl = match[2]?.trim();
-
-        return (
-          <span key={`cite-grp-${pIdx}-${idx}`} className={styles.citationGroup}>
-            {nums.map((num) => {
-              const src = sources.find((s) => s.num === num);
-              if (!src) return null;
-              return <button key={`cite-${num}`} type="button" className={styles.citationPill}
-                title={`View source ${num}: ${src.name}`} onClick={() => onSource(src)}>{num}</button>;
-            })}
-          </span>
-        );
-      }
-      return (
-        <span key={`text-${pIdx}-${idx}`}>
-          {renderInlineWithFormatting(part, `p-${pIdx}-${idx}`)}
-        </span>
-      );
-    });
-  };
-
-  return (
-    <div>
-      {paragraphs.map((p, pIdx) => {
-        const isHeading = /^#{1,4}\s+/.test(p);
-        if (isHeading) {
-          const headingText = p.replace(/^#{1,4}\s+/, "");
-          return (
-            <h4 key={pIdx} className={styles.proseHeading}>
-              {renderSegment(headingText, pIdx)}
-            </h4>
-          );
-        }
-
-        const isBullet = /^[*•-]\s+/.test(p);
-        const cleanP = isBullet ? p.replace(/^[*•-]\s+/, "") : p;
-        if (isBullet) {
-          return (
-            <div key={pIdx} className={styles.proseBulletItem}>
-              <span className={styles.bulletDot}>•</span>
-              <div style={{ flex: 1 }}>{renderSegment(cleanP, pIdx)}</div>
-            </div>
-          );
-        }
-        return (
-          <p key={pIdx} className={styles.proseParagraph}>
-            {renderSegment(cleanP, pIdx)}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
 
 function AssistantTextCard({ msg }: { msg: ChatMessage }) {
   const { text, sources } = normalizeChatCitations(msg.text || "", msg.sources);

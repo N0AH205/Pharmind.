@@ -76,11 +76,13 @@ export default function PDFDropzone({ onSuccess, onSelect, onDeleted }: Props) {
     {loading && <p role="status">Loading library…</p>}
     {!loading && !papers.length && <p className={styles.sub}>No papers indexed yet.</p>}
     {papers.map(doc => <div key={doc.document_id} className={styles.paperItem}>
-      <div className={styles.paperInfo}><strong>{doc.filename}</strong><span className={styles.paperMeta}>{doc.pages} pages · {doc.chunks} passages · {doc.associated_drug}</span>
-        {doc.original_available && <a href={`/api/documents/${encodeURIComponent(doc.document_id)}/file`} target="_blank" rel="noreferrer">View PDF ↗</a>}
+      <div className={styles.paperInfo}><span className={styles.paperName}>{doc.filename}</span><span className={styles.paperMeta}>{doc.pages} pages · {doc.chunks} passages{doc.associated_drug ? ` · ${doc.associated_drug}` : ""}</span>
       </div>
-      <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => onSelect?.(doc)}>Use paper</button>
-      <button type="button" className={styles.deleteBtn} disabled={busy} onClick={() => void remove(doc)} aria-label={`Delete ${doc.filename}`}>Delete</button>
+      <div className={styles.paperActions}>
+        {doc.original_available && <a className={styles.pdfLink} href={`/api/documents/${encodeURIComponent(doc.document_id)}/file`} target="_blank" rel="noreferrer">View PDF <span aria-hidden="true">↗</span></a>}
+        <button type="button" className={styles.usePaperBtn} disabled={busy} onClick={() => onSelect?.(doc)}>Use paper</button>
+        <button type="button" className={styles.deleteBtn} disabled={busy} onClick={() => void remove(doc)} aria-label={`Delete ${doc.filename}`}>Delete</button>
+      </div>
     </div>)}
   </div>;
 }

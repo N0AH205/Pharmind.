@@ -16,7 +16,8 @@
     "jsme-editor": "2024.4.29",
     "next": "16.4.3",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "react-markdown": "10.1.0"
   },
   "devDependencies": {
     "@types/node": "^20",

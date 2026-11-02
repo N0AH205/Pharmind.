@@ -30,6 +30,11 @@ def pdf_bytes(*pages):
 
 
 class DocumentTests(unittest.TestCase):
+    def test_chat_formatting_preserves_list_indentation_and_numbering(self):
+        from rag.chat import _sanitize_chat_formatting
+        markdown = "### Findings\n\n1. First result\n   - Nested finding\n2. Second result\n\n- **Limitations:**\n  More detail."
+        self.assertEqual(_sanitize_chat_formatting(markdown), markdown)
+
     def test_explicit_new_database_path_never_falls_back_to_existing_data(self):
         path = os.path.join(self.directory.name, "new-database")
         with patch.dict(os.environ, {"CHROMA_PATH": path}):
