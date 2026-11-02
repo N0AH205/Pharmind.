@@ -465,7 +465,7 @@ function LocalWorkspace({ initialQuery = "", initialMode = "structure_science" }
       <aside className={`${styles.sidebar} ${!sidebarOpen ? styles.sidebarCollapsed : ""}`}>
         <div className={styles.sidebarHeader}>
           <div className={styles.sidebarBrand}>
-            <span className={styles.brandName}>Pharmind</span>
+            <span className={styles.brandName}>pharmind.</span>
           </div>
           <button
             type="button"
