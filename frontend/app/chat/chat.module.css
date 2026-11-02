@@ -4,7 +4,7 @@
 .sidebarCollapsed { width: 0; flex-basis: 0; border-right-color: transparent; visibility: hidden; transition-delay: 0s, 0s, 320ms; }
 .sidebarHeader { padding: 28px 20px; display: flex; align-items: center; justify-content: space-between; }
 .sidebarBrand { display: flex; align-items: center; gap: 9px; text-decoration: none; }
-.brandName { font: 900 27px/1.1 var(--font-display); letter-spacing: -1px; }
+.brandName { font-size: 21px; font-weight: 700; letter-spacing: -.8px; }
 .collapseBtn, .expandSidebarBtn, .closeModalBtn { display: inline-flex; padding: 6px; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--slate); }
 .newChatWrap { padding: 0 18px 24px; }
 .newChatBtn { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 11px 12px; background: var(--slate); color: var(--bg-surface); border: 1px solid var(--slate); font-size: 12px; font-weight: 600; }
